@@ -26,8 +26,9 @@ ABSOLUTE_ZERO_CELSIUS = -273.15
 #fpa - focal-plane array (sensor)
 
 
-def sub_10001180(coretmp_, cx):
+def sub_10001180(fpatmp_, coretmp_, cx):
     global Distance_, refltmp_, airtmp_, Humi_, Emiss_
+    global flt_1000335C, flt_10003360, flt_1000339C, flt_10003394, flt_10003398
 
     # based on:
     # https://www.mdpi.com/1424-8220/17/8/1718 page: 4
@@ -85,17 +86,16 @@ def sub_10001180(coretmp_, cx):
     else:
         distance_c = (Distance_ * 0.85 - 1.125) / 100.
 
-    if debug > 0:
-        print('cx:', cx, 'v2:', v2)
-        print('v5:', v5)
-
-#    for i in range(16384):
-#        v8 = float(v5 * v22 + v23) / flt_10003360 + l_flt_1000337C_2
-#        v8 = max(v8, 0.)
-#        Ttot = float(v8)**0.5 - l_flt_1000337C - ABSOLUTE_ZERO_CELSIUS
-#        Tobj_C = ((Ttot**4 - part_Tatm_Trefl) * part_emi_t_1)**0.25 + ABSOLUTE_ZERO_CELSIUS
-#        p.append(Tobj_C + distance_c * (Tobj_C - airtmp_))
-#        v5 += 1
+    if False:
+        for i in range(16384):
+            v8 = float(v5 * v22 + v23) / flt_10003360 + l_flt_1000337C_2
+            v8 = max(v8, 0.)
+            Ttot = float(v8)**0.5 - l_flt_1000337C - ABSOLUTE_ZERO_CELSIUS
+            Tobj_C = ((Ttot**4 - part_Tatm_Trefl) * part_emi_t_1)**0.25 + ABSOLUTE_ZERO_CELSIUS
+            p.append(Tobj_C + distance_c * (Tobj_C - airtmp_))
+            v5 += 1
+        print(' p1:', p[:10])
+        print(' p2:', p[-10:])
 
     np_v5 = np.arange(16384.0) - v4
     np_v8 = (np_v5 * v22 + v23) / flt_10003360 + l_flt_1000337C_2
@@ -103,6 +103,16 @@ def sub_10001180(coretmp_, cx):
     np_Tobj_C = ((np_Ttot**4 - part_Tatm_Trefl) * part_emi_t_1)**0.25 + ABSOLUTE_ZERO_CELSIUS
     np_result = np_Tobj_C + distance_c * (np_Tobj_C - airtmp_)
 
+    v = np_result.tolist()
+
+    if debug > 1:
+        print('cx:', cx, 'v2:', v2)
+        print('v5:', v5)
+        print('flt_1000339C', flt_1000339C, 'flt_10003398', flt_10003398, 'flt_10003394', flt_10003394, 'fpatmp_', fpatmp_)
+        print('v22:', v22)
+        print('v23:', v23)
+        print('np1:', v[:10])
+        print('np2:', v[-10:])
     return np_result
 
 
@@ -158,7 +168,7 @@ def temperatureLut(fpatmp_, meta3):
     if abs(Emiss_) < 0.0001 or abs(flt_10003360) < 0.0001:
         ##bugfix??
         return np.arange(16384.0)
-    return sub_10001180(coretmp_, v5); #//bug in IDA
+    return sub_10001180(fpatmp_, coretmp_, v5); #//bug in IDA
 
 
 def info(frame):
