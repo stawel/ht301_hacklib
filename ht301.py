@@ -2,8 +2,7 @@
 import numpy as np
 import math
 
-
-debug = 2
+debug = 1
 
 def f32(m3, idx):
     v = m3[idx:idx+4].view(dtype=np.dtype(np.float32))
@@ -23,6 +22,8 @@ flt_10003394 = 0., 0., 0.
 
 ABSOLUTE_ZERO_CELSIUS = -273.15
 
+
+#fpa - focal-plane array (sensor)
 
 
 def sub_10001180(coretmp_, cx):
@@ -83,18 +84,28 @@ def sub_10001180(coretmp_, cx):
         distance_c = (20        * 0.85 - 1.125) / 100.
     else:
         distance_c = (Distance_ * 0.85 - 1.125) / 100.
-    for i in range(16384):
-        v8 = float(v5 * v22 + v23) / flt_10003360 + l_flt_1000337C_2
-        Ttot = float(v8)**0.5 - l_flt_1000337C - ABSOLUTE_ZERO_CELSIUS
-        Tobj_C = ((Ttot**4 - part_Tatm_Trefl) * part_emi_t_1)**0.25 + ABSOLUTE_ZERO_CELSIUS
-        p.append(Tobj_C + distance_c * (Tobj_C - airtmp_))
-        v5 += 1
 
-    #print('p:',p)
-    return p
+    if debug > 0:
+        print('cx:', cx, 'v2:', v2)
+        print('v5:', v5)
+
+#    for i in range(16384):
+#        v8 = float(v5 * v22 + v23) / flt_10003360 + l_flt_1000337C_2
+#        v8 = max(v8, 0.)
+#        Ttot = float(v8)**0.5 - l_flt_1000337C - ABSOLUTE_ZERO_CELSIUS
+#        Tobj_C = ((Ttot**4 - part_Tatm_Trefl) * part_emi_t_1)**0.25 + ABSOLUTE_ZERO_CELSIUS
+#        p.append(Tobj_C + distance_c * (Tobj_C - airtmp_))
+#        v5 += 1
+
+    np_v5 = np.arange(16384.0) - v4
+    np_v8 = (np_v5 * v22 + v23) / flt_10003360 + l_flt_1000337C_2
+    np_Ttot = np_v8**0.5 - l_flt_1000337C - ABSOLUTE_ZERO_CELSIUS
+    np_Tobj_C = ((np_Ttot**4 - part_Tatm_Trefl) * part_emi_t_1)**0.25 + ABSOLUTE_ZERO_CELSIUS
+    np_result = np_Tobj_C + distance_c * (np_Tobj_C - airtmp_)
+
+    return np_result
 
 
-#fpa <- focal-plane array (sensor)
 
 def temperatureLut(fpatmp_, meta3):
 
@@ -144,6 +155,9 @@ def temperatureLut(fpatmp_, meta3):
         print('flt_10003398',flt_10003398)
         print('flt_10003394',flt_10003394)
 
+    if abs(Emiss_) < 0.0001 or abs(flt_10003360) < 0.0001:
+        ##bugfix??
+        return np.arange(16384.0)
     return sub_10001180(coretmp_, v5); #//bug in IDA
 
 
