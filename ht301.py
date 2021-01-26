@@ -205,6 +205,7 @@ def info(frame):
         'Tmax_C': temperature_LUT_C[Tmax_raw],
         'Tmax_point': (Tmax_x, Tmax_y),
         'Tcenter_C': temperature_LUT_C[Tcenter_raw],
+        'Tcenter_point': (int(Width_/2), int(Height_/2)),
     }
 
     if debug > 1:
