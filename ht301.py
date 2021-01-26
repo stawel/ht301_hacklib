@@ -1,8 +1,9 @@
 #!/usr/bin/python3
 import numpy as np
 import math
+import cv2
 
-debug = 1
+debug = 0
 
 def f32(m3, idx):
     v = m3[idx:idx+4].view(dtype=np.dtype(np.float32))
@@ -138,7 +139,7 @@ def temperatureLut(fpatmp_, meta3):
     flt_10003394 = f32(m3, 22);
     readParaFromDevFlag = True
     if readParaFromDevFlag:
-        print('m3:', m3[127*2:127*2+30])
+        if debug > 0: print('m3:', m3[127*2:127*2+30])
         Fix_ = f32(m3,127*2);
         refltmp_ = f32(m3,127*2 + 4);
         airtmp_ = f32(m3,127*2 + 8);
@@ -171,11 +172,8 @@ def temperatureLut(fpatmp_, meta3):
     return sub_10001180(fpatmp_, coretmp_, v5); #//bug in IDA
 
 
-def info(frame):
+def info(meta, width, height):
 
-    Height_, Width_ = 288, 384
-    meta = frame[Height_:, ...]
-    meta = meta.reshape(4, Width_)
     meta0, meta3 = meta[0], meta[3]
 
     Tfpa_raw = meta0[1]
@@ -205,7 +203,7 @@ def info(frame):
         'Tmax_C': temperature_LUT_C[Tmax_raw],
         'Tmax_point': (Tmax_x, Tmax_y),
         'Tcenter_C': temperature_LUT_C[Tcenter_raw],
-        'Tcenter_point': (int(Width_/2), int(Height_/2)),
+        'Tcenter_point': (int(width/2), int(height/2)),
     }
 
     if debug > 1:
@@ -226,3 +224,35 @@ def info(frame):
 
     
 
+
+
+class HT301:
+    def __init__(self, video_dev):
+        self.cap = cv2.VideoCapture(video_dev)
+        self.cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
+        # Use raw mode
+        self.cap.set(cv2.CAP_PROP_ZOOM, 0x8004)
+        # Calibrate
+        self.calibrate()
+        #? enable thermal data
+        #cap.set(cv2.CAP_PROP_ZOOM, 0x8020)
+
+
+    def read(self):
+        ret, frame = self.cap.read()
+        dt = np.dtype('<u2')
+        frame = frame.view(dtype=dt).reshape((frame.shape[:2]))
+        self.frame_raw = frame
+        self.frame = frame[:frame.shape[0] - 4,...]
+        self.meta  = frame[frame.shape[0] - 4:,...]
+        return ret, self.frame
+
+    def info(self):
+        width, height = self.frame.shape
+        return info(self.meta, height, width)
+
+    def calibrate(self):
+        self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000)
+
+    def release(self):
+        return self.cap.release()
