@@ -7,9 +7,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import ht301
 import time
 
-video_dev = 2
 fps = 25
-
 T_margin = 2.0
 auto_exposure = True
 T_min, T_max = 0., 50.
@@ -18,7 +16,7 @@ T_min, T_max = 0., 50.
 cmaps_idx = 0
 cmaps = ['inferno', 'coolwarm', 'cividis', 'jet', 'nipy_spectral', 'binary', 'gray', 'tab10']
 
-cap = ht301.HT301(video_dev)
+cap = ht301.HT301()
 
 fig = plt.figure()
 

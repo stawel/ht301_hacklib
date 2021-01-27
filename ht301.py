@@ -227,8 +227,15 @@ def info(meta, width, height):
 
 
 class HT301:
-    def __init__(self, video_dev):
+    def __init__(self, video_dev = None):
+
+        if video_dev == None:
+            video_dev = self.find_device()
+
         self.cap = cv2.VideoCapture(video_dev)
+        if not self.isHt301(self.cap):
+            Exception('device ' + str(video_dev) + ": HT301 not found!")
+
         self.cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
         # Use raw mode
         self.cap.set(cv2.CAP_PROP_ZOOM, 0x8004)
@@ -237,6 +244,24 @@ class HT301:
         #? enable thermal data
         #cap.set(cv2.CAP_PROP_ZOOM, 0x8020)
 
+    def isHt301(self, cap):
+        if not cap.isOpened():
+            if debug > 0: print('open failed!')
+            return False
+        w = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        if debug > 0: print('width:', w, 'height:', h)
+        if w == 384 and h == 292: return True
+        return False
+
+    def find_device(self):
+        for i in range(10):
+            if debug > 0: print('testing device nr:',i)
+            cap = cv2.VideoCapture(i)
+            ok = self.isHt301(cap)
+            cap.release()
+            if ok: return i
+        raise Exception("HT301 device not found!")
 
     def read(self):
         ret, frame = self.cap.read()

@@ -6,15 +6,10 @@ import ht301
 import utils
 import time
 
-
-video_dev = 2
 draw_temp = True
 
-cap = ht301.HT301(video_dev)
-
+cap = ht301.HT301()
 cv2.namedWindow("frame", cv2.WINDOW_NORMAL)
-
-
 
 while(True):
     ret, frame = cap.read()
