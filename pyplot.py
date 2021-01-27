@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import ht301
+import time
 
 video_dev = 2
 fps = 25
@@ -63,6 +64,10 @@ def press(event):
     if event.key == ' ': paused ^= True; print('paused:', paused)
     if event.key == 'a': auto_exposure ^= True; print('auto exposure:', auto_exposure)
     if event.key == 'u': print('calibrate'); cap.calibrate()
+    if event.key == 'w':
+        filename = time.strftime("%Y-%m-%d_%H:%M:%S") + '.png'
+        plt.savefig(filename)
+        print('saved to:', filename)
     if event.key in [',', '.']:
         if event.key == '.': cmaps_idx= (cmaps_idx + 1) % len(cmaps)
         else:                cmaps_idx= (cmaps_idx - 1) % len(cmaps)
