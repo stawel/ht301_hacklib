@@ -20,3 +20,13 @@ def drawTemperature(img, point, T, color = (0,0,0)):
     if ty                > img.shape[0]: ty = y-d1
 
     cv2.putText(img, t, (tx,ty), font, 1, color, dsize, cv2.LINE_8)
+
+def setAnnotate(a, img, info, name, visible):
+    (x,y) = info[name + '_point']
+    a.xy = (x,y)
+    a.set_text('%.2f$^\circ$C' % info[name+'_C'])
+    a.set_visible(visible)
+    tx,ty = 20, 15
+    if x > img.shape[1]-50: tx = -80
+    if y < 30: ty = -15
+    a.xyann = (tx, ty)

@@ -5,29 +5,33 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import ht301
+import utils
 import time
 
 fps = 25
 T_margin = 2.0
 auto_exposure = True
 T_min, T_max = 0., 50.
+draw_temp = True
 
 #see https://matplotlib.org/tutorials/colors/colormaps.html
-cmaps_idx = 0
+cmaps_idx = 1
 cmaps = ['inferno', 'coolwarm', 'cividis', 'jet', 'nipy_spectral', 'binary', 'gray', 'tab10']
 
 cap = ht301.HT301()
-
-fig = plt.figure()
-
 ret, frame = cap.read()
 info, lut = cap.info()
 
+fig = plt.figure()
 ax = plt.gca()
 im = ax.imshow(lut[frame],cmap=cmaps[cmaps_idx])
 divider = make_axes_locatable(ax)
 cax = divider.append_axes("right", size="5%", pad=0.05)
 cbar = plt.colorbar(im, cax=cax)
+astyle = dict(s='', xy=(0, 0), xytext=(0, 0), textcoords='offset pixels', arrowprops=dict(facecolor='black', arrowstyle="->"))
+a_min = ax.annotate(**astyle, bbox=dict(boxstyle='square', fc='lightblue', alpha=0.3, lw=0))
+a_max = ax.annotate(**astyle, bbox=dict(boxstyle='square', fc='red' , alpha=0.3, lw=0))
+a_cen = ax.annotate(**astyle, bbox=dict(boxstyle='square', fc='yellow', alpha=0.3, lw=0))
 
 paused = False
 update_colormap = True
@@ -39,6 +43,10 @@ def animate_func(i):
         info, lut = cap.info()
         lut_frame = lut[frame]
         im.set_array(lut_frame)
+
+        utils.setAnnotate(a_min, frame, info, 'Tmin', draw_temp)
+        utils.setAnnotate(a_max, frame, info, 'Tmax', draw_temp)
+        utils.setAnnotate(a_cen, frame, info, 'Tcenter', draw_temp)
 
         # Sketchy auto-exposure
         lmin, lmax = lut_frame.min(), lut_frame.max()
@@ -52,15 +60,16 @@ def animate_func(i):
             fig.canvas.resize_event()  #force update all, even with blit=True
             update_colormap = False
             return []
-        return [im]
+        return [im, a_min, a_max, a_cen]
     return []
 
 anim = animation.FuncAnimation(fig, animate_func, interval = 1000 / fps, blit=True)
 
 def press(event):
-    global paused, auto_exposure, update_colormap, cmaps_idx
+    global paused, auto_exposure, update_colormap, cmaps_idx, draw_temp
     if event.key == ' ': paused ^= True; print('paused:', paused)
     if event.key == 'a': auto_exposure ^= True; print('auto exposure:', auto_exposure)
+    if event.key == 't': draw_temp ^= True; print('draw temp:', draw_temp)
     if event.key == 'u': print('calibrate'); cap.calibrate()
     if event.key == 'w':
         filename = time.strftime("%Y-%m-%d_%H:%M:%S") + '.png'
