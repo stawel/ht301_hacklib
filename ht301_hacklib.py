@@ -87,24 +87,11 @@ def sub_10001180(fpatmp_, coretmp_, cx):
     else:
         distance_c = (Distance_ * 0.85 - 1.125) / 100.
 
-    if False:
-        for i in range(16384):
-            v8 = float(v5 * v22 + v23) / flt_10003360 + l_flt_1000337C_2
-            v8 = max(v8, 0.)
-            Ttot = float(v8)**0.5 - l_flt_1000337C - ABSOLUTE_ZERO_CELSIUS
-            Tobj_C = ((Ttot**4 - part_Tatm_Trefl) * part_emi_t_1)**0.25 + ABSOLUTE_ZERO_CELSIUS
-            p.append(Tobj_C + distance_c * (Tobj_C - airtmp_))
-            v5 += 1
-        print(' p1:', p[:10])
-        print(' p2:', p[-10:])
-
     np_v5 = np.arange(16384.0) - v4
     np_v8 = (np_v5 * v22 + v23) / flt_10003360 + l_flt_1000337C_2
     np_Ttot = np_v8**0.5 - l_flt_1000337C - ABSOLUTE_ZERO_CELSIUS
     np_Tobj_C = ((np_Ttot**4 - part_Tatm_Trefl) * part_emi_t_1)**0.25 + ABSOLUTE_ZERO_CELSIUS
     np_result = np_Tobj_C + distance_c * (np_Tobj_C - airtmp_)
-
-    v = np_result.tolist()
 
     if debug > 1:
         print('cx:', cx, 'v2:', v2)
