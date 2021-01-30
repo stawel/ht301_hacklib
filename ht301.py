@@ -262,8 +262,8 @@ class HT301:
         self.cap.set(cv2.CAP_PROP_ZOOM, 0x8004)
         # Calibrate
         self.calibrate()
-        #? enable thermal data
-        #cap.set(cv2.CAP_PROP_ZOOM, 0x8020)
+        #? enable thermal data - not needed
+        #self.cap.set(cv2.CAP_PROP_ZOOM, 0x8020)
 
     def isHt301(self, cap):
         if not cap.isOpened():
