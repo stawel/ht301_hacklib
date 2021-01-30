@@ -172,7 +172,7 @@ def temperatureLut(fpatmp_, meta3):
     return sub_10001180(fpatmp_, coretmp_, v5); #//bug in IDA
 
 
-def info(meta, width, height):
+def info(meta, device_strings, width, height):
 
     meta0, meta3 = meta[0], meta[3]
 
@@ -207,6 +207,8 @@ def info(meta, width, height):
         'Tcenter_C': temperature_LUT_C[Tcenter_raw],
         'Tcenter_raw': Tcenter_raw,
         'Tcenter_point': (int(width/2), int(height/2)),
+        'device_strings': device_strings,
+        'device_type': device_strings[3]
     }
 
     if debug > 1:
@@ -225,7 +227,23 @@ def info(meta, width, height):
 
     return r_info, temperature_LUT_C
 
-    
+def findString(m3chr, idx):
+    try:
+        ends = m3chr.index(0, idx)
+    except ValueError:
+        ends = idx
+    return ends+1, ''.join(chr(x) for x in m3chr[idx:ends])
+
+def device_info(meta):
+    meta3 = meta[3]
+    m3chr = list(meta3.view(dtype=np.dtype(np.uint8)))
+    idx = 48
+    device_strings = []
+    for i in range(6):
+        idx, s = findString(m3chr, idx)
+        device_strings.append(s)
+    if debug > 0: print('device_info:', device_strings)
+    return device_strings
 
 
 
@@ -266,18 +284,33 @@ class HT301:
             if ok: return i
         raise Exception("HT301 device not found!")
 
-    def read(self):
+    def read_(self):
         ret, frame = self.cap.read()
         dt = np.dtype('<u2')
         frame = frame.view(dtype=dt).reshape((frame.shape[:2]))
-        self.frame_raw = frame
-        self.frame = frame[:frame.shape[0] - 4,...]
-        self.meta  = frame[frame.shape[0] - 4:,...]
+        frame_raw = frame
+        f_visible = frame_raw[:frame_raw.shape[0] - 4,...]
+        meta      = frame_raw[frame_raw.shape[0] - 4:,...]
+        return ret, frame_raw, f_visible, meta
+
+    def read(self):
+        frame_ok = False
+        while not frame_ok:
+            ret, frame_raw, frame, meta = self.read_()
+            device_strings = device_info(meta)
+            if device_strings[3] == 'T3-317-13': frame_ok = True
+            else:
+                if debug > 0: print('frame meta no match:', device_strings)
+
+        self.frame_raw = frame_raw
+        self.frame = frame
+        self.meta  = meta
+        self.device_strings  = device_strings
         return ret, self.frame
 
     def info(self):
         width, height = self.frame.shape
-        return info(self.meta, height, width)
+        return info(self.meta, self.device_strings, height, width)
 
     def calibrate(self):
         self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000)
