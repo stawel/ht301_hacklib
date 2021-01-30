@@ -9,7 +9,7 @@ import time
 draw_temp = True
 
 cap = ht301.HT301()
-cv2.namedWindow("frame", cv2.WINDOW_NORMAL)
+cv2.namedWindow("HT301", cv2.WINDOW_NORMAL)
 
 while(True):
     ret, frame = cap.read()
@@ -29,7 +29,7 @@ while(True):
         utils.drawTemperature(frame, info['Tcenter_point'], info['Tcenter_C'], (0,255,255))
 
     #frame2 = frame2.reshape(288, 384)
-    cv2.imshow('frame',frame)
+    cv2.imshow('HT301',frame)
     key = cv2.waitKey(1) & 0xFF
     if key == ord('q'):
         break
