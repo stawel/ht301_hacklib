@@ -199,10 +199,13 @@ def info(meta, width, height):
 
     r_info = {
         'Tmin_C': temperature_LUT_C[Tmin_raw],
+        'Tmin_raw': Tmin_raw,
         'Tmin_point': (Tmin_x, Tmin_y),
         'Tmax_C': temperature_LUT_C[Tmax_raw],
+        'Tmax_raw': Tmax_raw,
         'Tmax_point': (Tmax_x, Tmax_y),
         'Tcenter_C': temperature_LUT_C[Tcenter_raw],
+        'Tcenter_raw': Tcenter_raw,
         'Tcenter_point': (int(width/2), int(height/2)),
     }
 
