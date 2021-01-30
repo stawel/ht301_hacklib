@@ -35,12 +35,13 @@ def autoExposure(update, T_min, T_max, T_margin, auto_exposure_type, frame):
     # Sketchy auto-exposure
     lmin, lmax = frame.min(), frame.max()
     if auto_exposure_type == 'center':
-        T_cent = (T_min+T_max)/2
-        d = max(T_cent-lmin, lmax-T_cent, 0) + T_margin
-        if T_max < T_cent + d or T_cent + d < T_max - 2 * T_margin:
+        T_cent = int((T_min+T_max)/2)
+        d = int(max(T_cent-lmin, lmax-T_cent, 0) + T_margin)
+        if lmin < T_min or T_max < lmax or (T_min + 2 * T_margin < lmin and T_max - 2 * T_margin > lmax):
+#            print('d:',d, 'lmin:', lmin, 'lmax:', lmax)
             update = True
             T_min, T_max = T_cent - d, T_cent + d
-
+#            print('T_min:', T_min, 'T_cent:', T_cent, 'T_max:', T_max)
     if auto_exposure_type == 'ends':
         if T_min                > lmin: update, T_min = True, lmin-T_margin
         if T_min + 2 * T_margin < lmin: update, T_min = True, lmin-T_margin

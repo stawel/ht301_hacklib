@@ -84,10 +84,8 @@ def press(event):
     if event.key == 'u': print('calibrate'); cap.calibrate()
     if event.key == 'a': auto_exposure ^= True; print('auto exposure:', auto_exposure, ', type:', auto_exposure_type)
     if event.key == 'z':
-        if auto_exposure_type == 'center':
-            auto_exposure_type = 'ends'
-        else:
-            auto_exposure_type = 'center'
+        types = ['center', 'ends']
+        auto_exposure_type = types[types.index(auto_exposure_type)-1]
         print('auto exposure:', auto_exposure, ', type:', auto_exposure_type)
     if event.key == 'w':
         filename = time.strftime("%Y-%m-%d_%H:%M:%S") + '.png'
