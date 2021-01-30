@@ -62,18 +62,20 @@ def animate_func(i):
 
 anim = animation.FuncAnimation(fig, animate_func, interval = 1000 / fps, blit=True)
 
+
+#keyboard
 def press(event):
-    global paused, auto_exposure, auto_exposure_type, update_colormap, cmaps_idx, draw_temp
+    global paused, auto_exposure, auto_exposure_type, update_colormap, cmaps_idx, draw_temp, T_min, T_max
     if event.key == ' ': paused ^= True; print('paused:', paused)
     if event.key == 't': draw_temp ^= True; print('draw temp:', draw_temp)
     if event.key == 'u': print('calibrate'); cap.calibrate()
-    if event.key == 'a': auto_exposure ^= True; print('auto exposure:', auto_exposure)
+    if event.key == 'a': auto_exposure ^= True; print('auto exposure:', auto_exposure, ', type:', auto_exposure_type)
     if event.key == 'z':
         if auto_exposure_type == 'center':
             auto_exposure_type = 'ends'
         else:
             auto_exposure_type = 'center'
-        print('auto exposure type:', auto_exposure_type)
+        print('auto exposure:', auto_exposure, ', type:', auto_exposure_type)
     if event.key == 'w':
         filename = time.strftime("%Y-%m-%d_%H:%M:%S") + '.png'
         plt.savefig(filename)
@@ -84,7 +86,18 @@ def press(event):
         print('color map:', cmaps[cmaps_idx])
         im.set_cmap(cmaps[cmaps_idx])
         update_colormap = True
-
+    if event.key in ['left', 'right', 'up', 'down']:
+        auto_exposure = False
+        T_cent = int((T_min + T_max)/2)
+        d = int(T_max - T_cent)
+        if event.key == 'up':    T_cent += T_margin/2
+        if event.key == 'down':  T_cent -= T_margin/2
+        if event.key == 'left':  d -= T_margin/2
+        if event.key == 'right': d += T_margin/2
+        d = max(d, T_margin)
+        T_min, T_max = T_cent - d, T_cent + d
+        print('auto exposure off, T_min:', T_min, 'T_cent:', T_cent, 'T_max:', T_max)
+        update_colormap = True
 
 fig.canvas.mpl_connect('key_press_event', press)
 
