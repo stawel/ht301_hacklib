@@ -11,6 +11,7 @@ import time
 fps = 25
 T_margin = 2.0
 auto_exposure = True
+auto_exposure_type = 'center'  # or 'ends'
 T_min, T_max = 0., 50.
 draw_temp = True
 
@@ -48,13 +49,9 @@ def animate_func(i):
         utils.setAnnotate(a_max, frame, info, 'Tmax', draw_temp)
         utils.setAnnotate(a_cen, frame, info, 'Tcenter', draw_temp)
 
-        # Sketchy auto-exposure
-        lmin, lmax = lut_frame.min(), lut_frame.max()
         if auto_exposure:
-            if T_min                > lmin: update_colormap, T_min = True, lmin-T_margin
-            if T_min + 2 * T_margin < lmin: update_colormap, T_min = True, lmin-T_margin
-            if T_max                < lmax: update_colormap, T_max = True, lmax+T_margin
-            if T_max - 2 * T_margin > lmax: update_colormap, T_max = True, lmax+T_margin
+            update_colormap, T_min, T_max = utils.autoExposure(update_colormap, T_min, T_max, T_margin, auto_exposure_type, lut_frame)
+
         if update_colormap:
             im.set_clim(T_min, T_max)
             fig.canvas.resize_event()  #force update all, even with blit=True
@@ -66,11 +63,17 @@ def animate_func(i):
 anim = animation.FuncAnimation(fig, animate_func, interval = 1000 / fps, blit=True)
 
 def press(event):
-    global paused, auto_exposure, update_colormap, cmaps_idx, draw_temp
+    global paused, auto_exposure, auto_exposure_type, update_colormap, cmaps_idx, draw_temp
     if event.key == ' ': paused ^= True; print('paused:', paused)
-    if event.key == 'a': auto_exposure ^= True; print('auto exposure:', auto_exposure)
     if event.key == 't': draw_temp ^= True; print('draw temp:', draw_temp)
     if event.key == 'u': print('calibrate'); cap.calibrate()
+    if event.key == 'a': auto_exposure ^= True; print('auto exposure:', auto_exposure)
+    if event.key == 'z':
+        if auto_exposure_type == 'center':
+            auto_exposure_type = 'ends'
+        else:
+            auto_exposure_type = 'center'
+        print('auto exposure type:', auto_exposure_type)
     if event.key == 'w':
         filename = time.strftime("%Y-%m-%d_%H:%M:%S") + '.png'
         plt.savefig(filename)

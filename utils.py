@@ -30,3 +30,21 @@ def setAnnotate(a, img, info, name, visible):
     if x > img.shape[1]-50: tx = -80
     if y < 30: ty = -15
     a.xyann = (tx, ty)
+
+def autoExposure(update, T_min, T_max, T_margin, auto_exposure_type, frame):
+    # Sketchy auto-exposure
+    lmin, lmax = frame.min(), frame.max()
+    if auto_exposure_type == 'center':
+        T_cent = (T_min+T_max)/2
+        d = max(T_cent-lmin, lmax-T_cent, 0) + T_margin
+        if T_max < T_cent + d or T_cent + d < T_max - 2 * T_margin:
+            update = True
+            T_min, T_max = T_cent - d, T_cent + d
+
+    if auto_exposure_type == 'ends':
+        if T_min                > lmin: update, T_min = True, lmin-T_margin
+        if T_min + 2 * T_margin < lmin: update, T_min = True, lmin-T_margin
+        if T_max                < lmax: update, T_max = True, lmax+T_margin
+        if T_max - 2 * T_margin > lmax: update, T_max = True, lmax+T_margin
+
+    return update, T_min, T_max
