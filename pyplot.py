@@ -11,7 +11,7 @@ import time
 fps = 25
 T_margin = 2.0
 auto_exposure = True
-auto_exposure_type = 'center'  # or 'ends'
+auto_exposure_type = 'ends'  # 'center' or 'ends'
 T_min, T_max = 0., 50.
 draw_temp = True
 
@@ -38,7 +38,7 @@ paused = False
 update_colormap = True
 
 def animate_func(i):
-    global paused, update_colormap, T_min, T_max
+    global paused, update_colormap, T_min, T_max, im
     ret, frame = cap.read()
     if not paused:
         info, lut = cap.info()
@@ -58,7 +58,7 @@ def animate_func(i):
             update_colormap = False
             return []
         return [im, a_min, a_max, a_cen]
-    return []
+    return [im, a_min, a_max, a_cen]
 
 anim = animation.FuncAnimation(fig, animate_func, interval = 1000 / fps, blit=True)
 
