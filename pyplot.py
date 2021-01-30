@@ -4,7 +4,7 @@ import cv2
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import ht301
+import ht301_hacklib
 import utils
 import time
 
@@ -19,7 +19,7 @@ draw_temp = True
 cmaps_idx = 1
 cmaps = ['inferno', 'coolwarm', 'cividis', 'jet', 'nipy_spectral', 'binary', 'gray', 'tab10']
 
-cap = ht301.HT301()
+cap = ht301_hacklib.HT301()
 ret, frame = cap.read()
 info, lut = cap.info()
 

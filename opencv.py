@@ -2,13 +2,13 @@
 import numpy as np
 import cv2
 import math
-import ht301
+import ht301_hacklib
 import utils
 import time
 
 draw_temp = True
 
-cap = ht301.HT301()
+cap = ht301_hacklib.HT301()
 cv2.namedWindow("HT301", cv2.WINDOW_NORMAL)
 
 while(True):
