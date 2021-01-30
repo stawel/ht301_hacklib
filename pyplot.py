@@ -62,10 +62,22 @@ def animate_func(i):
 
 anim = animation.FuncAnimation(fig, animate_func, interval = 1000 / fps, blit=True)
 
+def print_help():
+    print('''keys:
+    'h'      - help
+    ' '      - pause, resume
+    'u'      - calibrate
+    't'      - draw min, max, center temperature
+    'a', 'z' - auto exposure on/off, auto exposure type
+    'w'      - save to file date.png
+    ',', '.' - change color map
+    left, right, up, down - set exposure limits
+''')
 
 #keyboard
 def press(event):
     global paused, auto_exposure, auto_exposure_type, update_colormap, cmaps_idx, draw_temp, T_min, T_max
+    if event.key == 'h': print_help()
     if event.key == ' ': paused ^= True; print('paused:', paused)
     if event.key == 't': draw_temp ^= True; print('draw temp:', draw_temp)
     if event.key == 'u': print('calibrate'); cap.calibrate()
@@ -101,5 +113,6 @@ def press(event):
 
 fig.canvas.mpl_connect('key_press_event', press)
 
+print_help()
 plt.show()
 cap.release()
