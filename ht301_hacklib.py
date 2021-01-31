@@ -94,6 +94,7 @@ def sub_10001180(fpatmp_, coretmp_, cx):
     np_result = np_Tobj_C + distance_c * (np_Tobj_C - airtmp_)
 
     if debug > 1:
+        v = np_result.tolist()
         print('cx:', cx, 'v2:', v2)
         print('v5:', v5)
         print('flt_1000339C', flt_1000339C, 'flt_10003398', flt_10003398, 'flt_10003394', flt_10003394, 'fpatmp_', fpatmp_)
