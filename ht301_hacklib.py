@@ -274,8 +274,12 @@ class HT301:
 
     def read_(self):
         ret, frame = self.cap.read()
+        print("\ncap shape:", frame.shape)
         dt = np.dtype('<u2')
-        frame = frame.view(dtype=dt).reshape((frame.shape[:2]))
+        frame = frame.view(dtype=dt)
+        print("uint16 shape:", frame.shape)
+        frame = frame.reshape((frame.shape[:2]))
+        print("final shape:", frame.shape)
         frame_raw = frame
         f_visible = frame_raw[:frame_raw.shape[0] - 4,...]
         meta      = frame_raw[frame_raw.shape[0] - 4:,...]
