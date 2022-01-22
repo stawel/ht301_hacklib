@@ -1,3 +1,4 @@
+import numpy as np
 import cv2
 
 
@@ -49,3 +50,15 @@ def autoExposure(update, T_min, T_max, T_margin, auto_exposure_type, frame):
         if T_max - 2 * T_margin > lmax: update, T_max = True, lmax+T_margin
 
     return update, T_min, T_max
+
+
+def updateInfo(info, frame):
+    pos = np.unravel_index(frame.argmin(), frame.shape)
+    info['Tmin_C'] = frame[pos]
+    info['Tmin_point'] = (pos[1],pos[0])
+    pos = np.unravel_index(frame.argmax(), frame.shape)
+    info['Tmax_C'] = frame[pos]
+    info['Tmax_point'] = (pos[1],pos[0])
+    pos = (frame.shape[0]//2, frame.shape[1]//2)
+    info['Tcenter_C'] = frame[pos]
+    info['Tcenter_point'] = (pos[1],pos[0])

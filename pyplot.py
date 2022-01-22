@@ -40,23 +40,34 @@ temp_extra_annotations = {}
 
 paused = False
 update_colormap = True
+enable_diff, enable_annotation_diff = False, False
+lut_frame = diff_frame = np.zeros(frame.shape)
 
 def animate_func(i):
-    global paused, update_colormap, T_min, T_max, im
+    global paused, update_colormap, T_min, T_max, im, diff_frame, lut_frame, enable_diff, enable_annotation_diff
     ret, frame = cap.read()
     if not paused:
         info, lut = cap.info()
         lut_frame = lut[frame]
-        im.set_array(lut_frame)
+
+        if enable_diff: show_frame = lut_frame - diff_frame
+        else:           show_frame = lut_frame
+        if enable_annotation_diff:
+                        annotation_frame = lut_frame - diff_frame
+                        utils.updateInfo(info, annotation_frame)
+        else:           annotation_frame = lut_frame
+
+
+        im.set_array(show_frame)
 
         for name, annotation in temp_std_annotations.items():
             utils.setAnnotate(annotation, frame, info[name + '_point'], info[name+'_C'], draw_temp)
 
         for pos, annotation in temp_extra_annotations.items():
-            utils.setAnnotate(annotation, frame, pos, lut_frame[pos[1],pos[0]], True)
+            utils.setAnnotate(annotation, frame, pos, annotation_frame[pos[1],pos[0]], True)
 
         if auto_exposure:
-            update_colormap, T_min, T_max = utils.autoExposure(update_colormap, T_min, T_max, T_margin, auto_exposure_type, lut_frame)
+            update_colormap, T_min, T_max = utils.autoExposure(update_colormap, T_min, T_max, T_margin, auto_exposure_type, show_frame)
 
         if update_colormap:
             im.set_clim(T_min, T_max)
@@ -70,6 +81,9 @@ def print_help():
     print('''keys:
     'h'      - help
     ' '      - pause, resume
+    'd'      - set diff
+    'x','c'  - enable/disable diff, enable/disable annotation diff
+    'f'      - full screen
     'u'      - calibrate
     't'      - draw min, max, center temperature
     'e'      - remove extra annotations
@@ -77,6 +91,7 @@ def print_help():
     'w'      - save to file date.png
     ',', '.' - change color map
     left, right, up, down - set exposure limits
+
 mouse click:
              - add extra temperature annotation
 ''')
@@ -84,8 +99,12 @@ mouse click:
 #keyboard
 def press(event):
     global paused, auto_exposure, auto_exposure_type, update_colormap, cmaps_idx, draw_temp, T_min, T_max, temp_extra_annotations
+    global lut_frame, diff_frame, enable_diff, enable_annotation_diff
     if event.key == 'h': print_help()
     if event.key == ' ': paused ^= True; print('paused:', paused)
+    if event.key == 'd': diff_frame = lut_frame; enable_annotation_diff = enable_diff = True; print('set   diff')
+    if event.key == 'x': enable_diff ^= True; print('enable diff:', enable_diff)
+    if event.key == 'c': enable_annotation_diff ^= True; print('enable annotation diff:', enable_annotation_diff)
     if event.key == 't': draw_temp ^= True; print('draw temp:', draw_temp)
     if event.key == 'e':
         print('removing extra annotations: ', len(temp_extra_annotations))
