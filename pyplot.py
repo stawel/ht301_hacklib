@@ -31,9 +31,12 @@ divider = make_axes_locatable(ax)
 cax = divider.append_axes("right", size="5%", pad=0.05)
 cbar = plt.colorbar(im, cax=cax)
 astyle = dict(s='', xy=(0, 0), xytext=(0, 0), textcoords='offset pixels', arrowprops=dict(facecolor='black', arrowstyle="->"))
-a_min = ax.annotate(**astyle, bbox=dict(boxstyle='square', fc='lightblue', alpha=0.3, lw=0))
-a_max = ax.annotate(**astyle, bbox=dict(boxstyle='square', fc='red' , alpha=0.3, lw=0))
-a_cen = ax.annotate(**astyle, bbox=dict(boxstyle='square', fc='yellow', alpha=0.3, lw=0))
+
+def get_ann(color):
+    return ax.annotate(**astyle, bbox=dict(boxstyle='square', fc=color, alpha=0.3, lw=0))
+
+temp_std_annotations =  {'Tmin': get_ann('lightblue'), 'Tmax': get_ann('red'), 'Tcenter': get_ann('yellow')}
+temp_extra_annotations = {}
 
 paused = False
 update_colormap = True
@@ -46,9 +49,11 @@ def animate_func(i):
         lut_frame = lut[frame]
         im.set_array(lut_frame)
 
-        utils.setAnnotate(a_min, frame, info, 'Tmin', draw_temp)
-        utils.setAnnotate(a_max, frame, info, 'Tmax', draw_temp)
-        utils.setAnnotate(a_cen, frame, info, 'Tcenter', draw_temp)
+        for name, annotation in temp_std_annotations.items():
+            utils.setAnnotate(annotation, frame, info[name + '_point'], info[name+'_C'], draw_temp)
+
+        for pos, annotation in temp_extra_annotations.items():
+            utils.setAnnotate(annotation, frame, pos, lut_frame[pos[1],pos[0]], True)
 
         if auto_exposure:
             update_colormap, T_min, T_max = utils.autoExposure(update_colormap, T_min, T_max, T_margin, auto_exposure_type, lut_frame)
@@ -58,10 +63,8 @@ def animate_func(i):
             fig.canvas.resize_event()  #force update all, even with blit=True
             update_colormap = False
             return []
-        return [im, a_min, a_max, a_cen]
-    return [im, a_min, a_max, a_cen]
 
-anim = animation.FuncAnimation(fig, animate_func, interval = 1000 / fps, blit=True)
+    return [im] + list(temp_std_annotations.values()) + list(temp_extra_annotations.values())
 
 def print_help():
     print('''keys:
@@ -69,18 +72,25 @@ def print_help():
     ' '      - pause, resume
     'u'      - calibrate
     't'      - draw min, max, center temperature
+    'e'      - remove extra annotations
     'a', 'z' - auto exposure on/off, auto exposure type
     'w'      - save to file date.png
     ',', '.' - change color map
     left, right, up, down - set exposure limits
+mouse click:
+             - add extra temperature annotation
 ''')
 
 #keyboard
 def press(event):
-    global paused, auto_exposure, auto_exposure_type, update_colormap, cmaps_idx, draw_temp, T_min, T_max
+    global paused, auto_exposure, auto_exposure_type, update_colormap, cmaps_idx, draw_temp, T_min, T_max, temp_extra_annotations
     if event.key == 'h': print_help()
     if event.key == ' ': paused ^= True; print('paused:', paused)
     if event.key == 't': draw_temp ^= True; print('draw temp:', draw_temp)
+    if event.key == 'e':
+        print('removing extra annotations: ', len(temp_extra_annotations))
+        for ann in temp_extra_annotations.values(): ann.remove()
+        temp_extra_annotations = {}
     if event.key == 'u': print('calibrate'); cap.calibrate()
     if event.key == 'a': auto_exposure ^= True; print('auto exposure:', auto_exposure, ', type:', auto_exposure_type)
     if event.key == 'z':
@@ -110,6 +120,14 @@ def press(event):
         print('auto exposure off, T_min:', T_min, 'T_cent:', T_cent, 'T_max:', T_max)
         update_colormap = True
 
+def onclick(event):
+    if event.inaxes == ax:
+        pos = (int(event.xdata), int(event.ydata))
+        print('add extra annotation at pos:', pos)
+        temp_extra_annotations[pos] = get_ann('white')
+
+anim = animation.FuncAnimation(fig, animate_func, interval = 1000 / fps, blit=True)
+fig.canvas.mpl_connect('button_press_event', onclick)
 fig.canvas.mpl_connect('key_press_event', press)
 
 print_help()
