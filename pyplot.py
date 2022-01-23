@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import numpy as np
 import cv2
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.patches as patches
@@ -20,6 +21,8 @@ draw_temp = True
 #see https://matplotlib.org/tutorials/colors/colormaps.html
 cmaps_idx = 1
 cmaps = ['inferno', 'coolwarm', 'cividis', 'jet', 'nipy_spectral', 'binary', 'gray', 'tab10']
+
+matplotlib.rcParams['toolbar'] = 'None'
 
 cap = ht301_hacklib.HT301()
 ret, frame = cap.read()
