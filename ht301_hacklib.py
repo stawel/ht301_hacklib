@@ -260,6 +260,7 @@ class HT301:
         self.calibrate()
         #? enable thermal data - not needed
         #self.cap.set(cv2.CAP_PROP_ZOOM, 0x8020)
+        self.frame_raw = None
 
     def isHt301(self, cap):
         if not cap.isOpened():
@@ -298,6 +299,8 @@ class HT301:
             if device_strings[3] == 'T3-317-13': frame_ok = True
             else:
                 if debug > 0: print('frame meta no match:', device_strings)
+                if self.frame_raw != None:
+                    return False, self.frame
 
         self.frame_raw = frame_raw
         self.frame = frame
