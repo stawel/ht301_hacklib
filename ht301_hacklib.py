@@ -239,8 +239,10 @@ def device_info(meta):
 
 
 class HT301:
-    FRAME_WIDTH = 384
-    FRAME_HEIGHT = 292
+    FRAME_RAW_WIDTH = 384
+    FRAME_RAW_HEIGHT = 292
+    FRAME_WIDTH = FRAME_RAW_WIDTH
+    FRAME_HEIGHT = FRAME_RAW_HEIGHT - 4
 
     def __init__(self, video_dev = None):
 
@@ -266,7 +268,7 @@ class HT301:
         w = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
         if debug > 0: print('width:', w, 'height:', h)
-        if w == self.FRAME_WIDTH and h == self.FRAME_HEIGHT: return True
+        if w == self.FRAME_RAW_WIDTH and h == self.FRAME_RAW_HEIGHT: return True
         return False
 
     def find_device(self):
@@ -282,7 +284,7 @@ class HT301:
         ret, frame = self.cap.read()
         dt = np.dtype('<u2')
         frame = frame.view(dtype=dt)
-        frame = frame.reshape(self.FRAME_HEIGHT, self.FRAME_WIDTH)
+        frame = frame.reshape(self.FRAME_RAW_HEIGHT, self.FRAME_RAW_WIDTH)
         frame_raw = frame
         f_visible = frame_raw[:frame_raw.shape[0] - 4,...]
         meta      = frame_raw[frame_raw.shape[0] - 4:,...]
