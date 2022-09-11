@@ -1,9 +1,12 @@
 # ht301_hacklib
 ht-301 thermal camera opencv python lib.
 
-It's a very simple hacked together lib, might be useful for somebody,
+Supported thermal cameras:
+- Hti HT-301
+- Xtherm T3S, thanks to Angel-1024!
 
-uses `matplotlib` which is a little bit on the slow side,
+It's a very simple hacked together lib, might be useful for somebody,  
+uses `matplotlib` which is a little bit on the slow side,  
 or pure `opencv` - much faster but without most features
 
 Tested on ubuntu 20.04:
