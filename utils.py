@@ -22,20 +22,11 @@ def drawTemperature(img, point, T, color = (0,0,0)):
 
     cv2.putText(img, t, (tx,ty), font, 1, color, dsize, cv2.LINE_8)
 
-def setAnnotate(a, img, pos, value, visible):
-    (x,y) = pos
-    a.xy  = pos
-    a.set_text('%.2f$^\circ$C' % value)
-    a.set_visible(visible)
-    tx,ty = 20, 15
-    if x > img.shape[1]-50: tx = -80
-    if y < 30: ty = -15
-    a.xyann = (tx, ty)
-
-def autoExposure(update, T_min, T_max, T_margin, auto_exposure_type, frame):
+def autoExposure(update, exposure, frame):
     # Sketchy auto-exposure
     lmin, lmax = frame.min(), frame.max()
-    if auto_exposure_type == 'center':
+    T_min, T_max, T_margin = exposure['T_min'], exposure['T_max'], exposure['T_margin']
+    if exposure['auto_type'] == 'center':
         T_cent = int((T_min+T_max)/2)
         d = int(max(T_cent-lmin, lmax-T_cent, 0) + T_margin)
         if lmin < T_min or T_max < lmax or (T_min + 2 * T_margin < lmin and T_max - 2 * T_margin > lmax):
@@ -43,46 +34,132 @@ def autoExposure(update, T_min, T_max, T_margin, auto_exposure_type, frame):
             update = True
             T_min, T_max = T_cent - d, T_cent + d
 #            print('T_min:', T_min, 'T_cent:', T_cent, 'T_max:', T_max)
-    if auto_exposure_type == 'ends':
+    if exposure['auto_type'] == 'ends':
         if T_min                > lmin: update, T_min = True, lmin-T_margin
         if T_min + 2 * T_margin < lmin: update, T_min = True, lmin-T_margin
         if T_max                < lmax: update, T_max = True, lmax+T_margin
         if T_max - 2 * T_margin > lmax: update, T_max = True, lmax+T_margin
 
-    return update, T_min, T_max
+    exposure['T_min'] = T_min
+    exposure['T_max'] = T_max
+    return update
 
 def correctRoi(roi, shape):
-    if roi is None:
-        roi = ((0,0), shape)
     ((x,y),(w,h)) = roi
+#    if w == 0 and h == 0:
+#        ((x,y),(w,h)) = ((0,0), shape)
     x1,x2 = max(0, min(x,x+w)), max(0, x,x+w)
     y1,y2 = max(0, min(y,y+h)), max(0, y,y+h)
-    if x1 == x2: x2 += 1
-    if y1 == y2: y2 += 1
+#    if x1 == x2: x2 += 1
+#    if y1 == y2: y2 += 1
     return ((x1,y1),(x2,y2))
 
 
-def inRoi(roi_patch, point, shape):
+def inRoi(roi, point, shape):
     result = False
-    roi = (roi_patch.xy, (roi_patch.get_width(), roi_patch.get_height()))
     ((x1,y1),(x2,y2)) = correctRoi(roi, shape)
     if x1 < point[0] and point[0] < x2:
         if y1 < point[1] and point[1] < y2:
             result = True
     return result
 
-def updateInfo(info, frame, roi = None):
-    ((x1,y1),(x2,y2)) = correctRoi(roi, frame.shape)
-    roi_frame = frame[x1:x2,y1:y2]
-    if roi_frame.size <= 0:
-        x1,y1 = 0, 0
-        roi_frame = frame
-    pos = np.unravel_index(roi_frame.argmin(), roi_frame.shape)
-    info['Tmin_C'] = roi_frame[pos]
-    info['Tmin_point'] = (pos[1]+y1, pos[0]+x1)
-    pos = np.unravel_index(roi_frame.argmax(), roi_frame.shape)
-    info['Tmax_C'] = roi_frame[pos]
-    info['Tmax_point'] = (pos[1]+y1, pos[0]+x1)
-    pos = (frame.shape[0]//2, frame.shape[1]//2)
-    info['Tcenter_C'] = frame[pos]
-    info['Tcenter_point'] = (pos[1],pos[0])
+def subdict(d, l):
+    return dict((k,d[k]) for k in l if k in d)
+
+
+class HT301emulator:
+    def __init__(self, filename):
+        self.load(filename)
+
+    def save(filename, frame, info, lut, additional_values):
+        np.save(filename, np.array([frame, info, lut, additional_values], dtype="object"))
+
+    def load(self, filename):
+        v = np.load(filename, allow_pickle=True)
+        self._frame = v[0]
+        self._info = v[1]
+        self._lut = v[2]
+        self._additional_values = v[3]
+        print(self._lut)
+
+    def read(self):
+        return True, self._frame
+
+    def info(self):
+        return self._info, self._lut
+
+    def release(self):
+        return
+
+    def restore_additional_values(self, d):
+        for i in self._additional_values:
+            d[i] = self._additional_values[i]
+
+
+
+class Annotations:
+    def __init__(self, ax, patches):
+        self.ax = ax
+        self.astyle = dict(s='', xy=(0, 0), xytext=(0, 0), textcoords='offset pixels', arrowprops=dict(facecolor='black', arrowstyle="->"))
+        self.anns = {}
+        self.roi_patch = ax.add_patch(patches.Rectangle((0, 0), 0, 0, linewidth=1, edgecolor='black', facecolor='none'))
+        self.set_roi(((0,0),(0,0)))
+
+    def set_roi(self, roi):
+        self.roi = roi
+        ((x,y), (w,h)) = roi
+        self.roi_patch.xy = (x,y)
+        self.roi_patch.set_width(w)
+        self.roi_patch.set_height(h)
+        self.roi_patch.set_visible(w!=0 and h!=0)
+
+    def get_ann(self, name, color):
+        if name not in self.anns:
+            self.anns[name] = self.ax.annotate(**self.astyle, bbox=dict(boxstyle='square', fc=color, alpha=0.3, lw=0))
+        return self.anns[name]
+
+    def update(self, temp_annotations, annotation_frame, draw_temp):
+        l = temp_annotations['std'].items() | temp_annotations['user'].items()
+        for name, color in l:
+            pos = self.get_pos(name, annotation_frame, self.roi)
+            self.ann_set_temp(self.get_ann(name, color), pos, annotation_frame, draw_temp)
+
+    def get(self):
+        return list(self.anns.values()) + [self.roi_patch]
+
+    def remove(self, d):
+        for name in d:
+            if name in self.anns:
+                self.anns[name].remove()
+                del self.anns[name]
+        d.clear()
+
+    def ann_set_temp(self, ann, pos, annotation_frame, draw_temp):
+        (x,y) = pos
+        ann.xy  = pos
+        value = annotation_frame[pos[1], pos[0]]
+        ann.set_text('%.2f$^\circ$C' % value)
+        ann.set_visible(draw_temp)
+        tx,ty = 20, 15
+        if x > annotation_frame.shape[1]-50: tx = -80
+        if y < 30: ty = -15
+        ann.xyann = (tx, ty)
+
+
+    def get_pos(self, name, annotation_frame, roi):
+        ((x1,y1),(x2,y2)) = correctRoi(roi, annotation_frame.shape)
+        roi_frame = annotation_frame[y1:y2,x1:x2]
+        if roi_frame.size <= 0:
+            x1,y1 = 0, 0
+            roi_frame = annotation_frame
+        if name == 'Tmin':
+            pos = np.unravel_index(roi_frame.argmin(), roi_frame.shape)
+            pos = (pos[1]+x1, pos[0]+y1)
+        elif name == 'Tmax':
+            pos = np.unravel_index(roi_frame.argmax(), roi_frame.shape)
+            pos = (pos[1]+x1, pos[0]+y1)
+        elif name == 'Tcenter':
+            pos = (annotation_frame.shape[1]//2, annotation_frame.shape[0]//2)
+        else:
+            pos = name
+        return pos

@@ -2,6 +2,7 @@
 import numpy as np
 import math
 import cv2
+from datetime import datetime
 
 debug = 0
 
@@ -196,7 +197,9 @@ def info(meta, device_strings, width, height):
         'Tcenter_raw': Tcenter_raw,
         'Tcenter_point': (int(width/2), int(height/2)),
         'device_strings': device_strings,
-        'device_type': device_strings[3]
+        'device_type': device_strings[3],
+        'date': datetime.now(),
+        'meta': meta
     }
 
     if debug > 1:
