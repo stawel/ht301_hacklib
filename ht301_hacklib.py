@@ -251,7 +251,7 @@ class HT301:
 
         self.cap = cv2.VideoCapture(video_dev)
         if not self.isHt301(self.cap):
-            Exception('device ' + str(video_dev) + ": HT301 not found!")
+            Exception('device ' + str(video_dev) + ": HT301 or T3S not found!")
 
         self.cap.set(cv2.CAP_PROP_CONVERT_RGB, 0)
         # Use raw mode
