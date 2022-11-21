@@ -297,6 +297,7 @@ class HT301:
             ret, frame_raw, frame, meta = self.read_()
             device_strings = device_info(meta)
             if device_strings[3] == 'T3-317-13': frame_ok = True
+            elif device_strings[4] == 'T3-317-13': frame_ok = True
             elif device_strings[5] == 'T3S-A13': frame_ok = True
             else:
                 if debug > 0: print('frame meta no match:', device_strings)
