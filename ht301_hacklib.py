@@ -262,6 +262,12 @@ class HT301:
         #self.cap.set(cv2.CAP_PROP_ZOOM, 0x8020)
         self.frame_raw = None
 
+    def __enter__(self):
+        return self
+        
+    def __exit__(self, type, value, traceback):
+        self.release()
+
     def isHt301(self, cap):
         if not cap.isOpened():
             if debug > 0: print('open failed!')
