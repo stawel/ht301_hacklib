@@ -3,6 +3,7 @@ import numpy as np
 import math
 import cv2
 from datetime import datetime
+from sys import platform
 
 debug = 0
 
@@ -249,7 +250,14 @@ class HT301:
         if video_dev == None:
             video_dev = self.find_device()
 
-        self.cap = cv2.VideoCapture(video_dev)
+        # loosely taken from https://framagit.org/ericb/ir_thermography/-/blob/master/ht301_hacklib/ht301_hacklib.py
+        if platform.startswith('linux'):
+            # ensure v4l2 is used on Linux as gstreamer is broken with OpenCV
+            # see : https://github.com/opencv/opencv/issues/10324
+            self.cap = cv2.VideoCapture(video_dev, cv2.CAP_V4L2)
+        else:
+            self.cap = cv2.VideoCapture(video_dev)
+
         if not self.isHt301(self.cap):
             Exception('device ' + str(video_dev) + ": HT301 or T3S not found!")
 
