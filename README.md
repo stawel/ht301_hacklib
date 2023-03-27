@@ -46,3 +46,17 @@ Opencv version:
 $ ./opencv.py
 ```
 ![opencv output](docs/opencv-output.png)
+
+<br>
+
+## Related projects
+
+- https://gitlab.com/netman69/inficam
+- https://github.com/MCMH2000/OpenHD_HT301_Driver
+- https://github.com/sumpster/ht301_viewer
+- https://github.com/cmair/ht301_hacklib
+- https://github.com/mcguire-steve/ht301_ircam
+
+## Related materials
+- https://www.mdpi.com/1424-8220/17/8/1718
+
