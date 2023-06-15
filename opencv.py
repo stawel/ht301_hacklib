@@ -10,7 +10,8 @@ draw_temp = True
 
 # cap = ht301_hacklib.HT301()
 cap = ht301_hacklib.T2SPLUS()
-cv2.namedWindow("HT301", cv2.WINDOW_NORMAL)
+window_name = str(type(cap).__name__)
+cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
 
 def increase_luminance_contrast(frame):
     lab= cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
@@ -44,7 +45,7 @@ while(True):
         utils.drawTemperature(frame, info['Tcenter_point'], info['Tcenter_C'], (255,255,255))
 
 
-    cv2.imshow('HT301',frame)
+    cv2.imshow(window_name,frame)
     key = cv2.waitKey(1) & 0xFF
     if key == ord('q'):
         break
@@ -57,7 +58,7 @@ while(True):
         cap.temperature_range_high()
         cap.calibrate()
     if key == ord('s'):
-        cv2.imwrite(time.strftime("%Y-%m-%d_%H:%M:%S") + '.png', frame)
+        cv2.imwrite(time.strftime("%Y-%m-%d_%H-%M-%S") + '.png', frame)
 
 cap.release()
 cv2.destroyAllWindows()
