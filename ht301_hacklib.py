@@ -226,10 +226,9 @@ def findString(m3chr, idx):
         ends = idx
     return ends+1, ''.join(chr(x) for x in m3chr[idx:ends])
 
-def device_info(meta,meta_mapping=2):
+def device_info(meta,meta_mapping=3, idx=48):
     meta3 = meta[meta_mapping]
     m3chr = list(meta3.view(dtype=np.dtype(np.uint8)))
-    idx = 48
     device_strings = []
     for i in range(6):
         idx, s = findString(m3chr, idx)
@@ -344,7 +343,7 @@ class T2SPLUS(HT301):
         frame_ok = False
         while not frame_ok:
             ret, frame_raw, frame, meta = self.read_()
-            device_strings = device_info(meta,meta_mapping=3)
+            device_strings = device_info(meta,meta_mapping=2,idx=0)
             if device_strings[1] == 'T2S+': frame_ok = True
             else:
                 if debug > 0: print('frame meta no match:', device_strings)
