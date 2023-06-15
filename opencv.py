@@ -8,7 +8,8 @@ import time
 
 draw_temp = True
 
-cap = ht301_hacklib.HT301()
+# cap = ht301_hacklib.HT301()
+cap = ht301_hacklib.T2SPLUS()
 cv2.namedWindow("HT301", cv2.WINDOW_NORMAL)
 
 while(True):
