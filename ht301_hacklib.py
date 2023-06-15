@@ -162,9 +162,9 @@ def temperatureLut(fpatmp_, meta3):
     return sub_10001180(fpatmp_, coretmp_, v5); #//bug in IDA
 
 
-def info(meta, device_strings, width, height):
+def info(meta, device_strings, width, height, meta_mapping=[0,3]):
 
-    meta0, meta3 = meta[0], meta[3]
+    meta0, meta3 = meta[meta_mapping[0]], meta[meta_mapping[1]]
 
     Tfpa_raw = meta0[1]
     fpatmp_ = 20.0 - (float(Tfpa_raw) - 7800.0) / 36.0;
@@ -226,8 +226,8 @@ def findString(m3chr, idx):
         ends = idx
     return ends+1, ''.join(chr(x) for x in m3chr[idx:ends])
 
-def device_info(meta):
-    meta3 = meta[3]
+def device_info(meta,meta_mapping=2):
+    meta3 = meta[meta_mapping]
     m3chr = list(meta3.view(dtype=np.dtype(np.uint8)))
     idx = 48
     device_strings = []
@@ -333,3 +333,36 @@ class HT301:
 
     def release(self):
         return self.cap.release()
+    
+class T2SPLUS(HT301):
+    FRAME_RAW_WIDTH = 256
+    FRAME_RAW_HEIGHT = 196
+    FRAME_WIDTH = FRAME_RAW_WIDTH
+    FRAME_HEIGHT = FRAME_RAW_HEIGHT - 4
+
+    def read(self):
+        frame_ok = False
+        while not frame_ok:
+            ret, frame_raw, frame, meta = self.read_()
+            device_strings = device_info(meta,meta_mapping=3)
+            if device_strings[1] == 'T2S+': frame_ok = True
+            else:
+                if debug > 0: print('frame meta no match:', device_strings)
+                if self.frame_raw != None:
+                    return False, self.frame
+
+        self.frame_raw = frame_raw
+        self.frame = frame
+        self.meta  = meta
+        self.device_strings  = device_strings
+        return ret, self.frame
+
+    def info(self):
+        width, height = self.frame.shape
+        return info(self.meta, self.device_strings, height, width, meta_mapping=[0,1])
+    
+    def temperature_range_normal(self):
+        self.cap.set(cv2.CAP_PROP_ZOOM, 0x8020)
+
+    def temperature_range_higg(self):
+        self.cap.set(cv2.CAP_PROP_ZOOM, 0x8021)
