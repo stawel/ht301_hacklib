@@ -88,6 +88,7 @@ class FpsCounter:
 
 
 fps_counter = FpsCounter(alpha=0.8)
+upscale_factor = 4
 while True:
     ret, frame = cap.read()
     fps_counter.update()
@@ -105,14 +106,16 @@ while True:
     frame = increase_luminance_contrast(frame)
 
     frame = rotate_frame(frame, orientation)
-    n = 4
-    frame = np.kron(frame, np.ones((n, n, 1))).astype(np.uint8)
+
+    frame = np.kron(frame, np.ones((upscale_factor, upscale_factor, 1))).astype(
+        np.uint8
+    )
     if draw_temp:
         utils.drawTemperature(
             frame,
             rotatate_coordinate(
-                map(lambda x: n * x, info["Tmin_point"]),
-                (cap.FRAME_WIDTH * n, cap.FRAME_HEIGHT * n),
+                map(lambda x: upscale_factor * x, info["Tmin_point"]),
+                (cap.FRAME_WIDTH * upscale_factor, cap.FRAME_HEIGHT * upscale_factor),
                 orientation,
             ),
             info["Tmin_C"],
@@ -121,8 +124,8 @@ while True:
         utils.drawTemperature(
             frame,
             rotatate_coordinate(
-                map(lambda x: n * x, info["Tmax_point"]),
-                (cap.FRAME_WIDTH * n, cap.FRAME_HEIGHT * n),
+                map(lambda x: upscale_factor * x, info["Tmax_point"]),
+                (cap.FRAME_WIDTH * upscale_factor, cap.FRAME_HEIGHT * upscale_factor),
                 orientation,
             ),
             info["Tmax_C"],
@@ -131,8 +134,8 @@ while True:
         utils.drawTemperature(
             frame,
             rotatate_coordinate(
-                map(lambda x: n * x, info["Tcenter_point"]),
-                (cap.FRAME_WIDTH * n, cap.FRAME_HEIGHT * n),
+                map(lambda x: upscale_factor * x, info["Tcenter_point"]),
+                (cap.FRAME_WIDTH * upscale_factor, cap.FRAME_HEIGHT * upscale_factor),
                 orientation,
             ),
             info["Tcenter_C"],
