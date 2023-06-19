@@ -51,10 +51,10 @@ while(True):
         break
     if key == ord('u'):
         cap.calibrate()
-    if key == ord('z'):
+    if key == ord('k'):
         cap.temperature_range_normal()
         cap.calibrate()
-    if key == ord('x'):
+    if key == ord('l'):
         cap.temperature_range_high()
         cap.calibrate()
     if key == ord('s'):
