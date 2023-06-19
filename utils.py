@@ -100,7 +100,7 @@ class HT301emulator:
 class Annotations:
     def __init__(self, ax, patches):
         self.ax = ax
-        self.astyle = dict(text='', xy=(0, 0), xytext=(0, 0), textcoords='offset pixels', arrowprops=dict(facecolor='black', arrowstyle="->"))
+        self.astyle = dict(s='', xy=(0, 0), xytext=(0, 0), textcoords='offset pixels', arrowprops=dict(facecolor='black', arrowstyle="->"))
         self.anns = {}
         self.roi_patch = ax.add_patch(patches.Rectangle((0, 0), 0, 0, linewidth=1, edgecolor='black', facecolor='none'))
         self.set_roi(((0,0),(0,0)))
