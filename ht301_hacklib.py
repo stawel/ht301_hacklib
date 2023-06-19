@@ -361,9 +361,9 @@ class T2SPLUS(HT301):
         return info(self.meta, self.device_strings, height, width, meta_mapping=[0,1])
     
     def temperature_range_normal(self):
-        """Switch camera to the normal temperature range (0°C to 120°C)"""
+        """Switch camera to the normal temperature range (-20°C to 120°C)"""
         self.cap.set(cv2.CAP_PROP_ZOOM, 0x8020)
 
     def temperature_range_high(self):
-        """Switch camera to the high temperature range (0°C to 400°C)"""
+        """Switch camera to the high temperature range (-20°C to 450°C)"""
         self.cap.set(cv2.CAP_PROP_ZOOM, 0x8021)
