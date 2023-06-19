@@ -29,6 +29,7 @@ keys:
     ',', '.' - change color map
     'a', 'z' - auto exposure on/off, auto exposure type
     'k', 'l' - set the thermal range to normal/high (only for the TS2+)
+    'o'      - change the camera orientation (rotate 90 degs CW). Only in OpenCV
     
     left, right, up, down - set exposure limits
 
