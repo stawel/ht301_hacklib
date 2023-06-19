@@ -1,15 +1,16 @@
 # ht301_hacklib
-ht-301 thermal camera opencv python lib.
+Thermal camera opencv python lib.
 
 Supported thermal cameras:
 - Hti HT-301
 - Xtherm T3S, thanks to Angel-1024!
+- Xtherm T2S+, thanks to Christoph Mair
 
 It's a very simple hacked together lib, might be useful for somebody,  
 uses `matplotlib` which is a little bit on the slow side,  
 or pure `opencv` - much faster but without most features
 
-Tested on ubuntu 20.04:
+Tested on ubuntu 20.04 and windows 11:
 
 ```
 $ ./pyplot.py
@@ -27,6 +28,8 @@ keys:
     'r'      - save raw data to file date.npy
     ',', '.' - change color map
     'a', 'z' - auto exposure on/off, auto exposure type
+    'k', 'l' - set the thermal range to normal/high (only for the TS2+)
+    
     left, right, up, down - set exposure limits
 
 mouse:
@@ -38,7 +41,7 @@ mouse:
 
 View saved ('r' key) raw data file:
 ```
-$ ./pyplot.py 2022-09-11_18:49:07.npy
+$ ./pyplot.py 2022-09-11_18-49-07.npy
 ```
 
 Opencv version:

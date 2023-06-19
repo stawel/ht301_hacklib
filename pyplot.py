@@ -21,6 +21,10 @@ exposure = {'auto': True,
 }
 draw_temp = True
 
+# choose the camera class
+# cls = ht301_hacklib.HT301
+cls = ht301_hacklib.T2SPLUS
+
 #see https://matplotlib.org/tutorials/colors/colormaps.html
 cmaps_idx = 1
 cmaps = ['inferno', 'coolwarm', 'cividis', 'jet', 'nipy_spectral', 'binary', 'gray', 'tab10']
@@ -33,7 +37,13 @@ info = {}
 lut = None # will be defined later
 
 fig = plt.figure()
-fig.canvas.set_window_title('HT301')
+
+try:
+    fig.canvas.set_window_title(cls.__name__)
+except:
+    # does not work on windows
+    pass
+
 ax = plt.gca()
 im = ax.imshow(lut_frame, cmap=cmaps[cmaps_idx])
 divider = make_axes_locatable(ax)
@@ -67,7 +77,7 @@ if sys.argv[-1].endswith('.npy'):
     annotations.set_roi(roi)
     im.set_cmap(cmaps[cmaps_idx])
 else:
-    cap = ht301_hacklib.HT301()
+    cap = cls()
 
 
 def animate_func(i):
@@ -153,6 +163,12 @@ def press(event):
         print('color map:', cmaps[cmaps_idx])
         im.set_cmap(cmaps[cmaps_idx])
         update_colormap = True
+    if event.key in ['k', 'l']:
+        if event.key == 'k':
+            cap.temperature_range_normal()
+        else:
+            cap.temperature_range_high()
+        cap.calibrate()
     if event.key in ['left', 'right', 'up', 'down']:
         exposure['auto'] = False
         T_cent = int((exposure['T_min'] + exposure['T_max'])/2)
