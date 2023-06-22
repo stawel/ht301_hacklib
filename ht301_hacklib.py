@@ -99,7 +99,7 @@ class Camera:
         
         raise ValueError(f"Cannot find camera with a width of one of {cls.supported_widths} that also matches: {width=} and {height=}")
 
-    def update(self) -> Tuple[dict, np.ndarray]:
+    def info(self) -> Tuple[dict, np.ndarray]:
         shutTemper = read_u16(self.frame_raw_u16, self.fourLinePara + self.amountPixels + 1)
         floatShutTemper = shutTemper / 10.0 - self.ZEROC
         
@@ -204,18 +204,12 @@ class Camera:
         
         return info, temperatureTable
     
-    def info(self) -> Tuple[dict, np.ndarray]:
-        return self.update()
-
     # read raw data from cam, seperate visible frame from metadata
-    def read_data(self) -> Tuple[bool, np.ndarray]:
+    def read(self) -> Tuple[bool, np.ndarray]:
         ret, frame_raw = self.cap.read()
         self.frame_raw_u16: np.ndarray = frame_raw.view(np.uint16).ravel()
         frame_visible = self.frame_raw_u16[:self.fourLinePara].copy().reshape(self.height, self.width)
         return ret, frame_visible
-
-    def read(self) -> Tuple[bool, np.ndarray]:
-        return self.read_data()
 
     def set_correction(self, correction: float) -> None:
         self.sendFloatCommand(position=SET_CORRECTION, value=correction)
@@ -393,7 +387,7 @@ class CameraEmulator(Camera):
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, frame_raw_u16.shape[1])
         self.frame_raw_u16 = frame_raw_u16.ravel()
         super().__init__(video_dev=self.cap)
-    def read_data(self) -> Tuple[bool, np.ndarray]:
+    def read(self) -> Tuple[bool, np.ndarray]:
         ret = True
         frame_visible = self.frame_raw_u16[:self.fourLinePara].copy().reshape(self.height, self.width)
         return ret, frame_visible
