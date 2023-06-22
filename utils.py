@@ -67,40 +67,13 @@ def subdict(d, l):
     return dict((k,d[k]) for k in l if k in d)
 
 
-class HT301emulator:
-    def __init__(self, filename):
-        self.load(filename)
-
-    def save(filename, frame, info, lut, additional_values):
-        np.save(filename, np.array([frame, info, lut, additional_values], dtype="object"))
-
-    def load(self, filename):
-        v = np.load(filename, allow_pickle=True)
-        self._frame = v[0]
-        self._info = v[1]
-        self._lut = v[2]
-        self._additional_values = v[3]
-        print(self._lut)
-
-    def read(self):
-        return True, self._frame
-
-    def info(self):
-        return self._info, self._lut
-
-    def release(self):
-        return
-
-    def restore_additional_values(self, d):
-        for i in self._additional_values:
-            d[i] = self._additional_values[i]
 
 
 
 class Annotations:
     def __init__(self, ax, patches):
         self.ax = ax
-        self.astyle = dict(s='', xy=(0, 0), xytext=(0, 0), textcoords='offset pixels', arrowprops=dict(facecolor='black', arrowstyle="->"))
+        self.astyle = dict(text='', xy=(0, 0), xytext=(0, 0), textcoords='offset pixels', arrowprops=dict(facecolor='black', arrowstyle="->"))
         self.anns = {}
         self.roi_patch = ax.add_patch(patches.Rectangle((0, 0), 0, 0, linewidth=1, edgecolor='black', facecolor='none'))
         self.set_roi(((0,0),(0,0)))

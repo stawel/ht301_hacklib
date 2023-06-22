@@ -1,17 +1,17 @@
+
 #!/usr/bin/python3
 import numpy as np
 import cv2
-import math
 import ht301_hacklib
 import utils
 import time
 from skimage.exposure import rescale_intensity, equalize_hist
-
+import pickle
 draw_temp = True
 
 # cap = ht301_hacklib.HT301()
-cap = ht301_hacklib.T2SPLUS()
-window_name = str(type(cap).__name__)
+camera = ht301_hacklib.Camera()
+window_name = str(type(camera).__name__)
 cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
 
 orientation = 0  # 0, 90, 180, 270
@@ -28,7 +28,7 @@ def increase_luminance_contrast(frame):
 
     # merge the CLAHE enhanced L-channel with the a and b channel
     limg = cv2.merge((cl, a, b))
-    frame = enhanced_img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+    frame = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
     return frame
 
 
@@ -90,10 +90,11 @@ class FpsCounter:
 fps_counter = FpsCounter(alpha=0.8)
 upscale_factor = 4
 while True:
-    ret, frame = cap.read()
+    ret, frame = camera.read()
+    frame_raw = frame.copy()
     fps_counter.update()
     shape = frame.shape[0]
-    info, lut = cap.info()
+    info, lut = camera.info()
     frame = frame.astype(np.float32)
 
     # Sketchy auto-exposure
@@ -115,7 +116,7 @@ while True:
             frame,
             rotatate_coordinate(
                 map(lambda x: upscale_factor * x, info["Tmin_point"]),
-                (cap.FRAME_WIDTH * upscale_factor, cap.FRAME_HEIGHT * upscale_factor),
+                (camera.width * upscale_factor, camera.height * upscale_factor),
                 orientation,
             ),
             info["Tmin_C"],
@@ -125,7 +126,7 @@ while True:
             frame,
             rotatate_coordinate(
                 map(lambda x: upscale_factor * x, info["Tmax_point"]),
-                (cap.FRAME_WIDTH * upscale_factor, cap.FRAME_HEIGHT * upscale_factor),
+                (camera.width * upscale_factor, camera.height * upscale_factor),
                 orientation,
             ),
             info["Tmax_C"],
@@ -135,7 +136,7 @@ while True:
             frame,
             rotatate_coordinate(
                 map(lambda x: upscale_factor * x, info["Tcenter_point"]),
-                (cap.FRAME_WIDTH * upscale_factor, cap.FRAME_HEIGHT * upscale_factor),
+                (camera.width * upscale_factor, camera.height * upscale_factor),
                 orientation,
             ),
             info["Tcenter_C"],
@@ -160,25 +161,32 @@ while True:
     if key == ord("q"):
         break
     if key == ord("u"):
-        cap.calibrate()
+        camera.calibrate()
     if key == ord("k"):
-        cap.temperature_range_normal()
+        camera.temperature_range_normal()
         # some delay is needed before calibration
         for _ in range(50):
-            cap.read()
-        cap.calibrate()
+            camera.read()
+        camera.calibrate()
     if key == ord("l"):
-        cap.temperature_range_high()
+        camera.temperature_range_high()
         # some delay is needed before calibration
         for _ in range(50):
-            cap.read()
-        cap.calibrate()
+            camera.read()
+        camera.calibrate() 
     if key == ord("s"):
         cv2.imwrite(time.strftime("%Y-%m-%d_%H-%M-%S") + ".png", frame)
     if key == ord("o"):
         orientation = (orientation - 90) % 360
         (_, _, w, h) = cv2.getWindowImageRect(window_name)
         cv2.resizeWindow(window_name, h, w)
+    if key == ord("a"):
+        # save to disk
+        ret, frame = camera.cap.read()
+        data = (frame)
+        name = time.strftime("%Y-%m-%d_%H-%M-%S") + ".pkl"
+        with open(name, "wb") as f:
+            pickle.dump(data, f)
 
-cap.release()
+camera.release()
 cv2.destroyAllWindows()
