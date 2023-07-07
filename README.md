@@ -53,6 +53,14 @@ $ ./opencv.py
 
 <br>
 
+Changes in opencv.py file:
+- Computed temperature for each pixel based on range between min/max of camera
+- Based on a temperature threshold, masked the area of interest (in this case hottest)
+- Drawing a contour of the masked area on the camera frame to mark hottest area
+- Color clustering the mask to get a mean value of the pixels in order to differentiate between regions of temperature. Each cluster's center is computed as a mean and marked by a green dot
+
+When running the program a window for each will be opened. The cluster number and threshold can be changed in the code in the call of temp_clustering method and hot_area repectively
+
 ## Related projects
 
 - https://gitlab.com/netman69/inficam
