@@ -79,6 +79,21 @@ if sys.argv[-1].endswith('.npy'):
 else:
     cap = cls()
 
+import csv
+from datetime import datetime #to easily get miliseconds
+csv_filename = None
+def log_annotations_to_csv(annotation_frame):
+    anns_data = []
+    for type in ['std', 'user']:
+        for ann_name in temp_annotations[type]:
+            pos = annotations.get_pos(ann_name)
+            val = round(annotations.get_val(ann_name, annotation_frame), 2)
+            anns_data += [pos[0], pos[1], val]  # store each position and value
+    if csv_filename is not None:
+        with open(csv_filename, 'a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([datetime.now()] + anns_data)
+
 
 def animate_func(i):
     global lut, frame, info, paused, update_colormap, exposure, im, diff, lut_frame
@@ -99,6 +114,8 @@ def animate_func(i):
 
         if exposure['auto']:
             update_colormap = utils.autoExposure(update_colormap, exposure, show_frame)
+
+        log_annotations_to_csv(annotation_frame)
 
         if update_colormap:
             im.set_clim(exposure['T_min'], exposure['T_max'])
@@ -121,6 +138,7 @@ def print_help():
     'e'      - remove user temperature annotations
     'w'      - save to file date.png
     'r'      - save raw data to file date.npy
+    'v'      - record annotations data to file date.csv
     ',', '.' - change color map
     'a', 'z' - auto exposure on/off, auto exposure type
     left, right, up, down - set exposure limits
@@ -130,9 +148,11 @@ mouse:
     right button - add user temperature annotation
 ''')
 
+FILE_NAME_FORMAT = "%Y-%m-%d_%H:%M:%S"
+
 #keyboard
 def press(event):
-    global paused, exposure, update_colormap, cmaps_idx, draw_temp, temp_extra_annotations
+    global paused, exposure, update_colormap, cmaps_idx, draw_temp, temp_extra_annotations, csv_filename
     global lut_frame, lut, frame, diff, annotations, roi
     if event.key == 'h': print_help()
     if event.key == ' ': paused ^= True; print('paused:', paused)
@@ -150,13 +170,26 @@ def press(event):
         exposure['auto_type'] = types[types.index(exposure['auto_type'])-1]
         print('auto exposure:', exposure['auto'], ', type:', exposure['auto_type'])
     if event.key == 'w':
-        filename = time.strftime("%Y-%m-%d_%H:%M:%S") + '.png'
+        filename = time.strftime(FILE_NAME_FORMAT) + '.png'
         plt.savefig(filename)
         print('saved to:', filename)
     if event.key == 'r':
-        filename = time.strftime("%Y-%m-%d_%H:%M:%S") + '.npy'
-        utils.HT301emulator.save(filename, frame, info, lut, utils.subdict(globals(), ['cmaps_idx', 'exposure','diff', 'roi', 'temp_annotations', 'draw_temp']))
+        filename = time.strftime(FILE_NAME_FORMAT) + '.npy'
+        np.save(filename, camera.frame_raw_u16.reshape(camera.height+4, camera.width))
         print('saved to:', filename)
+    if event.key == 'v':
+        if csv_filename is None:
+            csv_filename = time.strftime(FILE_NAME_FORMAT) + '.csv'
+            with open(csv_filename, 'w', newline='') as f:
+                header = ["time"]
+                header += [f'{a} {x}' for a in temp_annotations['std'].keys() for x in ['x', 'y', 'val']] #t, tmin x, tmin y, tmin val, etc
+                header += [f'Point{i} {x}' for i, key in enumerate(temp_annotations['user'].keys()) for x in ['x', 'y', 'val']]
+                csv.writer(f).writerow(header)
+            print('Annotation recording started in:', csv_filename)
+        else:
+            print('Annotation recording  saved  in:', csv_filename)
+            csv_filename = None
+        
     if event.key in [',', '.']:
         if event.key == '.': cmaps_idx= (cmaps_idx + 1) % len(cmaps)
         else:                cmaps_idx= (cmaps_idx - 1) % len(cmaps)
