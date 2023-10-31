@@ -118,11 +118,20 @@ class Annotations:
             self.anns[name] = self.ax.annotate(**self.astyle, bbox=dict(boxstyle='square', fc=color, alpha=0.3, lw=0))
         return self.anns[name]
 
+    def get_pos(self, name):
+        pos = self.get_ann(name, "").xy
+        return pos
+    
+    def get_val(self, name, annotation_frame):
+        annotation_pos = self.get_pos(name)
+        val = annotation_frame[annotation_pos[::-1]]
+        return val
+
     def update(self, temp_annotations, annotation_frame, draw_temp):
         l = temp_annotations['std'].items() | temp_annotations['user'].items()
         for name, color in l:
-            pos = self.get_pos(name, annotation_frame, self.roi)
-            self.ann_set_temp(self.get_ann(name, color), pos, annotation_frame, draw_temp)
+            pos = self._get_pos(name, annotation_frame, self.roi)
+            self._ann_set_temp(self.get_ann(name, color), pos, annotation_frame, draw_temp)
 
     def get(self):
         return list(self.anns.values()) + [self.roi_patch]
@@ -134,7 +143,7 @@ class Annotations:
                 del self.anns[name]
         d.clear()
 
-    def ann_set_temp(self, ann, pos, annotation_frame, draw_temp):
+    def _ann_set_temp(self, ann, pos, annotation_frame, draw_temp):
         (x,y) = pos
         ann.xy  = pos
         value = annotation_frame[pos[1], pos[0]]
@@ -145,8 +154,8 @@ class Annotations:
         if y < 30: ty = -15
         ann.xyann = (tx, ty)
 
-
-    def get_pos(self, name, annotation_frame, roi):
+    
+    def _get_pos(self, name, annotation_frame, roi):
         ((x1,y1),(x2,y2)) = correctRoi(roi, annotation_frame.shape)
         roi_frame = annotation_frame[y1:y2,x1:x2]
         if roi_frame.size <= 0:
