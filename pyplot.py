@@ -148,7 +148,7 @@ mouse:
     right button - add user temperature annotation
 ''')
 
-FILE_NAME_FORMAT = "%Y-%m-%d_%H:%M:%S"
+FILE_NAME_FORMAT = "%Y-%m-%d_%H-%M-%S"
 
 #keyboard
 def press(event):
