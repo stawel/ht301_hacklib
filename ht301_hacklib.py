@@ -26,7 +26,7 @@ def read_u8(arr_u16, offset, step):
 
 class Camera:
     """Class for reading data from the XTherm/HT301/InfiRay thermal cameras"""
-    supported_widths = {240, 256, 392, 640}
+    supported_widths = {240, 256, 384, 640}
     ZEROC = 273.15
     distance_multiplier = 1.0
     offset_temp_shutter = 0.0
