@@ -13,6 +13,8 @@ SET_HUMIDITY    = 3 * 4
 SET_EMISSIVITY  = 4 * 4
 SET_DISTANCE    = 5 * 4
 
+ROWS_SPECIAL_DATA = 4
+
 def read_u16(arr_u16, offset):
     ''' arr: np.uint16 '''
     return arr_u16[offset]
@@ -26,7 +28,7 @@ def read_u8(arr_u16, offset, step):
 
 class Camera:
     """Class for reading data from the XTherm/HT301/InfiRay thermal cameras"""
-    supported_widths = {240, 256, 384, 640}
+    supported_resolutions = {(240, 180), (256, 192), (384, 288), (640, 512)}
     ZEROC = 273.15
     distance_multiplier = 1.0
     offset_temp_shutter = 0.0
@@ -58,7 +60,7 @@ class Camera:
         if not video_dev:
             raise Exception("No video device found!")
         self.cap = video_dev
-        self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))-4
+        self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))-ROWS_SPECIAL_DATA
         self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 
 
@@ -76,7 +78,7 @@ class Camera:
         self.calibrate()
 
  
-    def find_device(cls, width=None, height=None) -> cv2.VideoCapture:
+    def find_device(cls) -> cv2.VideoCapture:
         """Find a supported thermal camera
          
           Optionally narrow down the resultion of the camera too look for."""
@@ -86,18 +88,15 @@ class Camera:
                     cap = cv2.VideoCapture(i, cv2.CAP_V4L2)
                 else:
                     cap = cv2.VideoCapture(i)
-                   
-
-                if cap.get(cv2.CAP_PROP_FRAME_WIDTH) in cls.supported_widths: 
-                    if width is not None and cap.get(cv2.CAP_PROP_FRAME_WIDTH) != width:
-                        continue
-                    if height is not None and cap.get(cv2.CAP_PROP_FRAME_HEIGHT) != height:
-                        continue
+                
+                cap_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+                cap_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+                print(f"Found a camera {i} with resolution {int(cap_width)}x{int(cap_height)}")
+                
+                if (cap_width, cap_height-ROWS_SPECIAL_DATA) in cls.supported_resolutions:
                     return cap
-
             except: pass
-        
-        raise ValueError(f"Cannot find camera with a width of one of {cls.supported_widths} that also matches: {width=} and {height=}")
+        raise ValueError(f"Cannot find camera with a width of one of {cls.supported_resolutions} that also matches: {width=} and {height=}")
 
     def info(self) -> Tuple[dict, np.ndarray]:
         shutTemper = read_u16(self.frame_raw_u16, self.fourLinePara + self.amountPixels + 1)
