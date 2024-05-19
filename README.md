@@ -4,7 +4,7 @@ Thermal camera opencv python lib.
 Supported thermal cameras:
 - Hti HT-301
 - Xtherm T3S, thanks to Angel-1024!
-- Xtherm T2S+, thanks to Christoph Mair
+- Xtherm T2L, T2S+, thanks to Christoph Mair
 
 It's a very simple hacked together lib, might be useful for somebody,  
 uses `matplotlib` which is a little bit on the slow side,  

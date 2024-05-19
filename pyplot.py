@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 import numpy as np
-import cv2
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -22,8 +21,13 @@ exposure = {'auto': True,
 draw_temp = True
 
 # choose the camera class
-# cls = ht301_hacklib.HT301
-cls = ht301_hacklib.T2SPLUS
+camera:ht301_hacklib.Camera
+if sys.argv[-1].endswith('.npy'):
+    camera = ht301_hacklib.CameraEmulator(sys.argv[-1])
+else:
+    camera = ht301_hacklib.Camera()
+
+
 
 #see https://matplotlib.org/tutorials/colors/colormaps.html
 cmaps_idx = 1
@@ -32,14 +36,14 @@ cmaps = ['inferno', 'coolwarm', 'cividis', 'jet', 'nipy_spectral', 'binary', 'gr
 matplotlib.rcParams['toolbar'] = 'None'
 
 # temporary fake frame
-lut_frame = frame = np.full((ht301_hacklib.HT301.FRAME_HEIGHT, ht301_hacklib.HT301.FRAME_WIDTH), 25.)
+lut_frame = frame = np.full((camera.height, camera.width), 25.)
 info = {}
 lut = None # will be defined later
 
 fig = plt.figure()
 
 try:
-    fig.canvas.set_window_title(cls.__name__)
+    fig.canvas.set_window_title("Thermal Camera")
 except:
     # does not work on windows
     pass
@@ -71,13 +75,20 @@ diff = { 'enabled': False,
          'frame': np.zeros(frame.shape)
 }
 
-if sys.argv[-1].endswith('.npy'):
-    cap = utils.HT301emulator(sys.argv[-1])
-    cap.restore_additional_values(globals())
-    annotations.set_roi(roi)
-    im.set_cmap(cmaps[cmaps_idx])
-else:
-    cap = cls()
+import csv
+from datetime import datetime #to easily get miliseconds
+csv_filename = None
+def log_annotations_to_csv(annotation_frame):
+    anns_data = []
+    for type in ['std', 'user']:
+        for ann_name in temp_annotations[type]:
+            pos = annotations.get_pos(ann_name)
+            val = round(annotations.get_val(ann_name, annotation_frame), 2)
+            anns_data += [pos[0], pos[1], val]  # store each position and value
+    if csv_filename is not None:
+        with open(csv_filename, 'a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([datetime.now()] + anns_data)
 
 import csv
 from datetime import datetime #to easily get miliseconds
@@ -97,9 +108,9 @@ def log_annotations_to_csv(annotation_frame):
 
 def animate_func(i):
     global lut, frame, info, paused, update_colormap, exposure, im, diff, lut_frame
-    ret, frame = cap.read()
+    ret, frame = camera.read()
     if not paused:
-        info, lut = cap.info()
+        info, lut = camera.info()
         lut_frame = lut[frame]
 
         if diff['enabled']: show_frame = lut_frame - diff['frame']
@@ -141,6 +152,7 @@ def print_help():
     'v'      - record annotations data to file date.csv
     ',', '.' - change color map
     'a', 'z' - auto exposure on/off, auto exposure type
+    'k', 'l' - set the thermal range to normal/high (supported by T2S+/T2L)  
     left, right, up, down - set exposure limits
 
 mouse:
@@ -163,7 +175,7 @@ def press(event):
     if event.key == 'e':
         print('removing user annotations: ', len(temp_annotations['user']))
         annotations.remove(temp_annotations['user'])
-    if event.key == 'u': print('calibrate'); cap.calibrate()
+    if event.key == 'u': print('calibrate'); camera.calibrate()
     if event.key == 'a': exposure['auto'] ^= True; print('auto exposure:', exposure['auto'], ', type:', exposure['auto_type'])
     if event.key == 'z':
         types = ['center', 'ends']
@@ -198,10 +210,10 @@ def press(event):
         update_colormap = True
     if event.key in ['k', 'l']:
         if event.key == 'k':
-            cap.temperature_range_normal()
+            camera.temperature_range_normal()
         else:
-            cap.temperature_range_high()
-        cap.calibrate()
+            camera.temperature_range_high()
+        camera.calibrate()
     if event.key in ['left', 'right', 'up', 'down']:
         exposure['auto'] = False
         T_cent = int((exposure['T_min'] + exposure['T_max'])/2)
@@ -254,4 +266,4 @@ fig.canvas.mpl_connect('key_press_event', press)
 
 print_help()
 plt.show()
-cap.release()
+camera.release()
