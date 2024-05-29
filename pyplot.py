@@ -1,4 +1,6 @@
 #!/usr/bin/python3
+import argparse
+import cv2
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -20,16 +22,27 @@ exposure = {'auto': True,
 }
 draw_temp = True
 
-# choose the camera class
-camera:ht301_hacklib.Camera
-if sys.argv[-1].endswith('.npy'):
-    camera = ht301_hacklib.CameraEmulator(sys.argv[-1])
-elif '-r' in sys.argv or '--rawcam' in sys.argv:
-    camera = ht301_hacklib.Camera(camera_raw=True)
+# Argument parsing
+parser = argparse.ArgumentParser(description='Thermal Camera Viewer')
+parser.add_argument('-r', '--rawcam', action='store_true', help='use the raw camera')
+parser.add_argument('-d', '--device', type=str, help='use the camera at camera_path')
+parser.add_argument('file', nargs='?', type=str, help='use the emulator with the data in file.npy')
+args = parser.parse_args()
+
+# Choose the camera class
+camera: ht301_hacklib.Camera
+
+if args.file and args.file.endswith('.npy'):
+    camera = ht301_hacklib.CameraEmulator(args.file)
 else:
-    camera = ht301_hacklib.Camera()
-
-
+    camera_kwargs = {}
+    if args.rawcam:
+        camera_kwargs['camera_raw'] = True
+    if args.device:
+        camera_path = args.device
+        cv2_cam = cv2.VideoCapture(camera_path)
+        camera_kwargs['video_dev'] = cv2_cam
+    camera = ht301_hacklib.Camera(**camera_kwargs)
 
 #see https://matplotlib.org/tutorials/colors/colormaps.html
 cmaps_idx = 1
@@ -115,11 +128,15 @@ def animate_func(i):
         info, lut = camera.info()
         lut_frame = lut[frame]
 
-        if diff['enabled']: show_frame = lut_frame - diff['frame']
-        else:               show_frame = lut_frame
+        if diff['enabled']:
+            show_frame = lut_frame - diff['frame']
+        else:
+            show_frame = lut_frame
+
         if diff['annotation_enabled']:
-                        annotation_frame = lut_frame - diff['frame']
-        else:           annotation_frame = lut_frame
+            annotation_frame = lut_frame - diff['frame']
+        else:
+            annotation_frame = lut_frame
 
         im.set_array(show_frame)
 
@@ -132,7 +149,7 @@ def animate_func(i):
 
         if update_colormap:
             im.set_clim(exposure['T_min'], exposure['T_max'])
-            fig.canvas.resize_event()  #force update all, even with blit=True
+            fig.canvas.draw_idle()  # force update all, even with blit=True
             update_colormap = False
             return []
 
@@ -215,7 +232,8 @@ def press(event):
             camera.temperature_range_normal()
         else:
             camera.temperature_range_high()
-        camera.calibrate()
+        camera.wait_for_range_application() # this takes care of calibration as well
+        update_colormap = True
     if event.key in ['left', 'right', 'up', 'down']:
         exposure['auto'] = False
         T_cent = int((exposure['T_min'] + exposure['T_max'])/2)

@@ -2,6 +2,7 @@
 import math
 from sys import platform
 from typing import Tuple
+import time
 from time import sleep
 
 import cv2
@@ -83,6 +84,10 @@ class Camera:
         # using Raw mode 16 bit data
         self.cap.set(cv2.CAP_PROP_ZOOM, 0x8004)
         
+        # Wait for the camera to apply the temperature range change
+        self.wait_for_range_application()
+
+        # Calibrate the camera
         self.calibrate()
 
  
@@ -110,13 +115,13 @@ class Camera:
         # TODO fix this readout
         shutTemper = read_u16(self.frame_raw_u16, self.fourLinePara + self.amountPixels + 1)
         floatShutTemper = shutTemper / 10.0 - self.ZEROC
-        print(f"Raw shut temp: {shutTemper}, float shut temp: {floatShutTemper}")
+        #print(f"Raw shut temp: {shutTemper}, float shut temp: {floatShutTemper}")
         floatShutTemper = 20.0
         
         # TODO fix this readout
         coreTemper = read_u16(self.frame_raw_u16, self.fourLinePara + self.amountPixels + 2)
         floatCoreTemper = coreTemper / 10.0 - self.ZEROC
-        print(f"Raw core temp: {coreTemper}, float core temp: {floatCoreTemper}")
+        #print(f"Raw core temp: {coreTemper}, float core temp: {floatCoreTemper}")
         floatCoreTemper = 20.0
         
         cal_00 = float(read_u16(self.frame_raw_u16, self.fourLinePara + self.amountPixels))
@@ -318,11 +323,16 @@ class Camera:
 
     def calibrate_raw(self) -> None:
         '''Camera calibration for cameras that return raw data only'''
+        self.reference_frame = None
+        self.offset_mean = 0.0
+        self.dead_pixels_mask = None
         # uniformity correction
-        sleep(0.5)  # wait for the camera to get ready
+        sleep(0.5)
         self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000) # close shutter
         sleep(0.3)  # wait for the shutter to close
-
+        self.flush_buffer()
+        # by issuing this command faster than once per second, we can keep the shutter closed
+        self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000)
         ret, frame_visible = self.read()
 
         if ret:
@@ -420,6 +430,53 @@ class Camera:
         self.cap.set(cv2.CAP_PROP_ZOOM, 0x8021)
         self.correction_coefficient_m = 1.17
         self.correction_coefficient_b = -40.9
+
+    def wait_for_range_application(self, timeout=20):
+        """Wait for the camera to apply the temperature range change, this is detected when the video stops being uniform"""
+        print("Waiting for camera to stabilize...")
+        start_time = time.time()
+        done = False
+        while time.time() - start_time < timeout:
+            ret, frame_visible = self.read()
+            if ret and np.std(frame_visible) > 0:
+                done = True
+                break
+            time.sleep(0.1)
+
+        if self.camera_raw:
+            # Now we keep the shutter open and wait for the camera to stabilize,
+            # we do this by running the calibration, waiting a bit and checking the average
+            # of all the pixels, when the change gets below a certain threshold we can consider
+            # the camera to be stable.
+            # Throughout this routine we keep the shutter closed.
+            lowest = 1000
+            margin = 0.1
+            min_val = 0.01
+            while time.time() - start_time < timeout:
+                self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000)
+                self.calibrate()
+                ret, frame_visible = self.read()
+                if ret:
+                    # calculate how uniform the frame is
+                    std = np.std(frame_visible)
+                    self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000)
+                    sleep(0.1)
+                    if std > min_val and lowest - std < margin:
+                        print(f"Camera is stable with std: {std}")
+                        return True
+                    
+                    if std < lowest and std > min_val:
+                        lowest = std
+            
+        elif done: 
+            print("Camera is stable")
+            return True
+
+        return False
+        
+    def flush_buffer(self, num_reads=16):
+        for i in range(num_reads):
+            ret, frame_visible = self.read()
 
 
 class MockVidoCapture:
