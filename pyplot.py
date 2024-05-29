@@ -24,6 +24,8 @@ draw_temp = True
 camera:ht301_hacklib.Camera
 if sys.argv[-1].endswith('.npy'):
     camera = ht301_hacklib.CameraEmulator(sys.argv[-1])
+elif '-r' in sys.argv or '--rawcam' in sys.argv:
+    camera = ht301_hacklib.Camera(camera_raw=True)
 else:
     camera = ht301_hacklib.Camera()
 

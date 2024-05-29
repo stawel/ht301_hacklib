@@ -2,6 +2,7 @@
 import math
 from sys import platform
 from typing import Tuple
+from time import sleep
 
 import cv2
 import numpy as np
@@ -54,12 +55,19 @@ class Camera:
     fourLinePara:int
     cap:cv2.VideoCapture
     frame_raw_u16:np.ndarray
-    def __init__(self, video_dev:cv2.VideoCapture|None=None) -> None:
+
+    camera_raw = False
+    reference_frame = None
+    offset_mean = 0.0
+    dead_pixels_mask = None
+
+    def __init__(self, video_dev:cv2.VideoCapture|None=None, camera_raw = False) -> None:
         if video_dev is None:
             video_dev = self.find_device()
         if not video_dev:
             raise Exception("No video device found!")
         self.cap = video_dev
+        self.camera_raw = camera_raw
         self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))-ROWS_SPECIAL_DATA
         self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 
@@ -99,11 +107,17 @@ class Camera:
         raise ValueError(f"Cannot find camera with a width of one of {cls.supported_resolutions} that also matches: {width=} and {height=}")
 
     def info(self) -> Tuple[dict, np.ndarray]:
+        # TODO fix this readout
         shutTemper = read_u16(self.frame_raw_u16, self.fourLinePara + self.amountPixels + 1)
         floatShutTemper = shutTemper / 10.0 - self.ZEROC
+        print(f"Raw shut temp: {shutTemper}, float shut temp: {floatShutTemper}")
+        floatShutTemper = 20.0
         
+        # TODO fix this readout
         coreTemper = read_u16(self.frame_raw_u16, self.fourLinePara + self.amountPixels + 2)
         floatCoreTemper = coreTemper / 10.0 - self.ZEROC
+        print(f"Raw core temp: {coreTemper}, float core temp: {floatCoreTemper}")
+        floatCoreTemper = 20.0
         
         cal_00 = float(read_u16(self.frame_raw_u16, self.fourLinePara + self.amountPixels))
         self.cal_01 = read_f32(self.frame_raw_u16, self.fourLinePara + self.amountPixels + 3)
@@ -208,6 +222,19 @@ class Camera:
         ret, frame_raw = self.cap.read()
         self.frame_raw_u16: np.ndarray = frame_raw.view(np.uint16).ravel()
         frame_visible = self.frame_raw_u16[:self.fourLinePara].copy().reshape(self.height, self.width)
+        if self.reference_frame is not None:
+            frame_float = frame_visible.astype(np.float32)
+
+            corrected_frame = frame_float - self.reference_frame + self.offset_mean
+
+            corrected_frame = np.clip(corrected_frame, 0, 65535)
+
+            if self.dead_pixels_mask is not None:
+                inpaint_radius = 3
+                corrected_frame = cv2.inpaint(corrected_frame, self.dead_pixels_mask, inpaint_radius, cv2.INPAINT_TELEA)
+
+            frame_visible = corrected_frame.astype(np.uint16)
+        
         return ret, frame_visible
 
     def set_correction(self, correction: float) -> None:
@@ -289,9 +316,34 @@ class Camera:
         self.cap.set(cv2.CAP_PROP_ZOOM, x1)
         self.cap.set(cv2.CAP_PROP_ZOOM, y1)
 
+    def calibrate_raw(self) -> None:
+        '''Camera calibration for cameras that return raw data only'''
+        # uniformity correction
+        sleep(0.5)  # wait for the camera to get ready
+        self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000) # close shutter
+        sleep(0.3)  # wait for the shutter to close
+
+        ret, frame_visible = self.read()
+
+        if ret:
+            self.reference_frame = frame_visible.astype(np.float32)
+            self.offset_mean = np.mean(self.reference_frame)
+        else:
+            raise RuntimeError("Failed to capture reference frame")
+
+        # dead pixel correction
+        threshold = 0.01
+        self.dead_pixels_mask = cv2.inRange(frame_visible.astype(np.float32), 0, threshold).astype(np.uint8)
+
+        print(f"Found {np.count_nonzero(self.dead_pixels_mask)} dead pixels")
+        print(f"At: {np.argwhere(self.dead_pixels_mask)}")
+
     def calibrate(self) -> None:
         '''camera calibration'''
-        self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000)
+        if self.camera_raw:
+            self.calibrate_raw()
+        else:
+            self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000)
 
     def release(self) -> None:
         ''' Release cap opencv '''
