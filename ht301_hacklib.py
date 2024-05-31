@@ -90,7 +90,9 @@ class Camera:
         # Calibrate the camera
         self.calibrate()
 
- 
+    def get_resolution(self) -> Tuple[int, int]:
+        return self.width, self.height
+
     def find_device(cls) -> cv2.VideoCapture:
         """Find a supported thermal camera
          
@@ -223,10 +225,12 @@ class Camera:
         return info, temperatureTable
     
     # read raw data from cam, seperate visible frame from metadata
-    def read(self) -> Tuple[bool, np.ndarray]:
+    def read(self, raw = False) -> Tuple[bool, np.ndarray]:
         ret, frame_raw = self.cap.read()
         self.frame_raw_u16: np.ndarray = frame_raw.view(np.uint16).ravel()
         frame_visible = self.frame_raw_u16[:self.fourLinePara].copy().reshape(self.height, self.width)
+        if raw:
+            return ret, frame_visible
         if self.reference_frame is not None:
             frame_float = frame_visible.astype(np.float32)
 
@@ -333,7 +337,7 @@ class Camera:
         self.flush_buffer()
         # by issuing this command faster than once per second, we can keep the shutter closed
         self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000)
-        ret, frame_visible = self.read()
+        ret, frame_visible = self.read(raw=True)
 
         if ret:
             self.reference_frame = frame_visible.astype(np.float32)
@@ -342,8 +346,13 @@ class Camera:
             raise RuntimeError("Failed to capture reference frame")
 
         # dead pixel correction
-        threshold = 0.01
-        self.dead_pixels_mask = cv2.inRange(frame_visible.astype(np.float32), 0, threshold).astype(np.uint8)
+        frame_visible_float = frame_visible.astype(np.float32)
+        min_val = np.min(frame_visible_float)
+        max_val = np.max(frame_visible_float)
+        threshold_margin = (max_val - min_val) * 0.05  # Adjust the multiplier as needed
+        threshold = min_val + threshold_margin
+
+        self.dead_pixels_mask = cv2.inRange(frame_visible_float, 0, threshold).astype(np.uint8)
 
         print(f"Found {np.count_nonzero(self.dead_pixels_mask)} dead pixels")
         print(f"At: {np.argwhere(self.dead_pixels_mask)}")
@@ -428,6 +437,11 @@ class Camera:
     def temperature_range_high(self):
         """Switch camera to the high temperature range (-20°C to 450°C)"""
         self.cap.set(cv2.CAP_PROP_ZOOM, 0x8021)
+        if self.camera_raw:
+            # TODO verify these
+            self.correction_coefficient_m = 0.1
+            self.correction_coefficient_b = 0
+            return
         self.correction_coefficient_m = 1.17
         self.correction_coefficient_b = -40.9
 
@@ -476,7 +490,7 @@ class Camera:
         
     def flush_buffer(self, num_reads=16):
         for i in range(num_reads):
-            ret, frame_visible = self.read()
+            ret, frame_visible = self.read(raw=True)
 
 
 class MockVidoCapture:
