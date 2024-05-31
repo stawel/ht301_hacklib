@@ -145,3 +145,52 @@ class Annotations:
         else:
             pos = name
         return pos
+
+def pixel_to_temp(pixel_value, min_temp, max_temp):
+    return ((pixel_value / 255) * (max_temp - min_temp)) + min_temp
+
+
+def temp_img(frame, min_temp, max_temp):
+    normalized_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    normalized_image = cv2.normalize(normalized_image, None, 0, 255, cv2.NORM_MINMAX)
+    return pixel_to_temp(normalized_image, min_temp, max_temp)
+
+
+def hot_area(frame, temperature_image, threshold):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    mask = np.where(temperature_image < threshold, 0, gray)
+    return mask, cv2.bitwise_and(frame, frame, mask=mask)
+
+
+def contoured_hottest_area(frame, mask):
+    cont_frame = frame.copy()
+    contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    cv2.drawContours(cont_frame, contours, -1, (0, 255, 0), 2)
+    return cont_frame
+
+
+def temp_clustering(hottest_area, cluster_no):
+    pic = cv2.cvtColor(hottest_area, cv2.COLOR_BGR2RGB)
+    pixel_vals = pic.reshape((-1, 3))
+    pixel_vals = np.float32(pixel_vals)
+
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.9)
+    k = cluster_no
+    retval, labels, centers = cv2.kmeans(pixel_vals, k, None, criteria, 20, cv2.KMEANS_PP_CENTERS)
+
+    centers = np.uint8(centers)
+    segmented_data = centers[labels.flatten()]
+    segmented_image = segmented_data.reshape(pic.shape)
+    return k, centers, cv2.cvtColor(segmented_image, cv2.COLOR_RGB2BGR)
+
+
+def cluster_centroids(cluster_centers, clustered_temp):
+    centroid_locations = []
+
+    for row in cluster_centers:
+        cluster_i = np.where(clustered_temp == row)
+        center_x = np.mean(cluster_i[0]).astype(int)
+        center_y = np.mean(cluster_i[1]).astype(int)
+        centroid_locations.append([center_x, center_y])
+
+    return np.array(centroid_locations)

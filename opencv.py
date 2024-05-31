@@ -13,6 +13,9 @@ draw_temp = True
 camera = ht301_hacklib.Camera()
 window_name = str(type(camera).__name__)
 cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+cv2.namedWindow("hottest_area_mask", cv2.WINDOW_NORMAL)
+cv2.namedWindow("clustered_temp", cv2.WINDOW_NORMAL)
+cv2.namedWindow("Hot_area_Contour", cv2.WINDOW_NORMAL)
 
 orientation = 0  # 0, 90, 180, 270
 
@@ -108,9 +111,42 @@ while True:
 
     frame = rotate_frame(frame, orientation)
 
+    # Mapping temperature to pixels
+    min_temp = info['Tmin_C']
+    max_temp = info['Tmax_C']
+    temperature_image = utils.temp_img(frame, min_temp, max_temp)
+
+    # Hottest area segmentation
+    mask, hottest_area = utils.hot_area(frame, temperature_image, threshold = 28)
+    cv2.imshow('hottest_area_mask', hottest_area)
+
+    # Contouring the hottest area
+    cont_frame = utils.contoured_hottest_area(frame, mask)
+    cv2.imshow('Hot_area_Contour', cont_frame)
+
+    # Color clustering using K-means
+    clusters, cluster_centers, clustered_temp = utils.temp_clustering(hottest_area, cluster_no = 7)
+
+    # Finding cluster centroid location
+    centroid_locations = utils.cluster_centroids(cluster_centers, clustered_temp)
+    clustered_temp[centroid_locations[:, 0], centroid_locations[:, 1]] = (0, 255, 0)
+    t = '%.2fC' % max_temp
+    clustered_temp = cv2.putText(
+        clustered_temp,
+        '(Exp) PLT: ' + t,
+        (100, 185),
+        cv2.FONT_HERSHEY_PLAIN,
+        1,
+        (0, 255, 0),
+        1,
+        cv2.LINE_AA
+    )
+    cv2.imshow('clustered_temp', clustered_temp)
+
     frame = np.kron(frame, np.ones((upscale_factor, upscale_factor, 1))).astype(
         np.uint8
     )
+
     if draw_temp:
         utils.drawTemperature(
             frame,
