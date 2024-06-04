@@ -114,17 +114,38 @@ class Camera:
         raise ValueError(f"Cannot find camera with a width of one of {cls.supported_resolutions} that also matches: {width=} and {height=}")
 
     def info(self) -> Tuple[dict, np.ndarray]:
+        #fuzzing readout
+        # for i in range(256 * 4):
+        #     print(f"Off: {i}; u16: {read_u16(self.frame_raw_u16, self.fourLinePara + i)}")
+        #     #print(f"Off: {i}; f32: {read_f32(self.frame_raw_u16, self.fourLinePara + i)}")
+        # return
+
+
         # TODO fix this readout
         shutTemper = read_u16(self.frame_raw_u16, self.fourLinePara + self.amountPixels + 1)
-        floatShutTemper = shutTemper / 10.0 - self.ZEROC
-        #print(f"Raw shut temp: {shutTemper}, float shut temp: {floatShutTemper}")
-        floatShutTemper = 20.0
+        if self.camera_raw:
+            if shutTemper < 0x801:
+                floatShutTemper = float(shutTemper)
+                corrFactor = 0.625
+            else:
+                floatShutTemper = float(0xfff - shutTemper)
+                corrFactor = -0.625
+            floatShutTemper = (floatShutTemper * corrFactor + 2731.5) / 10.0 + -273.15
+            #TODO figure out this correction factor thing
+            floatShutTemper = floatShutTemper - 10
+        else:
+            floatShutTemper = shutTemper / 10.0 - self.ZEROC
         
+        print(f"shutTemper: {shutTemper}, floatShutTemper: {floatShutTemper}, corrFactor: {corrFactor}")
+
         # TODO fix this readout
         coreTemper = read_u16(self.frame_raw_u16, self.fourLinePara + self.amountPixels + 2)
-        floatCoreTemper = coreTemper / 10.0 - self.ZEROC
-        #print(f"Raw core temp: {coreTemper}, float core temp: {floatCoreTemper}")
-        floatCoreTemper = 20.0
+        if self.camera_raw:
+            shutterFix = read_u16(self.frame_raw_u16, self.fourLinePara + (self.amountPixels * 2 + 0x2f) + 1)
+            print(f"shutterFix: {shutterFix}")
+            floatCoreTemper = floatShutTemper
+        else:
+            floatCoreTemper = coreTemper / 10.0 - self.ZEROC
         
         cal_00 = float(read_u16(self.frame_raw_u16, self.fourLinePara + self.amountPixels))
         self.cal_01 = read_f32(self.frame_raw_u16, self.fourLinePara + self.amountPixels + 3)
@@ -145,7 +166,7 @@ class Camera:
         humi = read_f32(self.frame_raw_u16, self.fourLinePara + self.userArea + 6)
         emiss = read_f32(self.frame_raw_u16, self.fourLinePara + self.userArea + 8) 
         distance = read_u16(self.frame_raw_u16, self.fourLinePara + self.userArea + 10)
-        
+
         fpa_avg = read_u16(self.frame_raw_u16, self.fourLinePara)
         fpaTmp = read_u16(self.frame_raw_u16, self.fourLinePara + 1)
         maxx1 = read_u16(self.frame_raw_u16, self.fourLinePara + 2)
