@@ -114,14 +114,6 @@ class Camera:
         raise ValueError(f"Cannot find camera with a width of one of {cls.supported_resolutions} that also matches: {width=} and {height=}")
 
     def info(self) -> Tuple[dict, np.ndarray]:
-        #fuzzing readout
-        # for i in range(256 * 4):
-        #     print(f"Off: {i}; u16: {read_u16(self.frame_raw_u16, self.fourLinePara + i)}")
-        #     #print(f"Off: {i}; f32: {read_f32(self.frame_raw_u16, self.fourLinePara + i)}")
-        # return
-
-
-        # TODO fix this readout
         shutTemper = read_u16(self.frame_raw_u16, self.fourLinePara + self.amountPixels + 1)
         if self.camera_raw:
             if shutTemper < 0x801:
@@ -131,19 +123,19 @@ class Camera:
                 floatShutTemper = float(0xfff - shutTemper)
                 corrFactor = -0.625
             floatShutTemper = (floatShutTemper * corrFactor + 2731.5) / 10.0 + -273.15
-            #TODO figure out this correction factor thing
-            floatShutTemper = floatShutTemper - 10
+            # TODO fix this readout for the T2S+ v2
+            # The temperature is indeed being red out, but the sensor is located in some weird place,
+            # it gets hot super fast and causes the entire image to drift, I couldn't figure out how to deal with that
+            # hard coding ~18C (room temp) works pretty good tho...
+            floatShutTemper = 18.0
         else:
             floatShutTemper = shutTemper / 10.0 - self.ZEROC
-        
-        print(f"shutTemper: {shutTemper}, floatShutTemper: {floatShutTemper}, corrFactor: {corrFactor}")
 
-        # TODO fix this readout
         coreTemper = read_u16(self.frame_raw_u16, self.fourLinePara + self.amountPixels + 2)
         if self.camera_raw:
-            shutterFix = read_u16(self.frame_raw_u16, self.fourLinePara + (self.amountPixels * 2 + 0x2f) + 1)
-            print(f"shutterFix: {shutterFix}")
-            floatCoreTemper = floatShutTemper
+            # TODO fix this readout for the T2S+ v2
+            # I don't even think the v2 has a separate core and shutter temperature registers...
+            floatCoreTemper = 18.0
         else:
             floatCoreTemper = coreTemper / 10.0 - self.ZEROC
         
@@ -346,7 +338,7 @@ class Camera:
         self.cap.set(cv2.CAP_PROP_ZOOM, x1)
         self.cap.set(cv2.CAP_PROP_ZOOM, y1)
 
-    def calibrate_raw(self) -> None:
+    def calibrate_raw(self, quiet=False) -> None:
         '''Camera calibration for cameras that return raw data only'''
         self.reference_frame = None
         self.offset_mean = 0.0
@@ -375,13 +367,14 @@ class Camera:
 
         self.dead_pixels_mask = cv2.inRange(frame_visible_float, 0, threshold).astype(np.uint8)
 
-        print(f"Found {np.count_nonzero(self.dead_pixels_mask)} dead pixels")
-        print(f"At: {np.argwhere(self.dead_pixels_mask)}")
+        if not quiet:
+            print(f"Found {np.count_nonzero(self.dead_pixels_mask)} dead pixels")
+            print(f"At: {np.argwhere(self.dead_pixels_mask)}")
 
-    def calibrate(self) -> None:
+    def calibrate(self, quiet=False) -> None:
         '''camera calibration'''
         if self.camera_raw:
-            self.calibrate_raw()
+            self.calibrate_raw(quiet=quiet)
         else:
             self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000)
 
@@ -479,7 +472,7 @@ class Camera:
             time.sleep(0.1)
 
         if self.camera_raw:
-            # Now we keep the shutter open and wait for the camera to stabilize,
+            # Now we keep the shutter closed and wait for the camera to stabilize,
             # we do this by running the calibration, waiting a bit and checking the average
             # of all the pixels, when the change gets below a certain threshold we can consider
             # the camera to be stable.
@@ -489,7 +482,7 @@ class Camera:
             min_val = 0.01
             while time.time() - start_time < timeout:
                 self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000)
-                self.calibrate()
+                self.calibrate(quiet=True)
                 ret, frame_visible = self.read()
                 if ret:
                     # calculate how uniform the frame is

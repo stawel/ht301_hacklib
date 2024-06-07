@@ -37,6 +37,14 @@ mouse:
     left  button - add Region Of Interest (ROI)
     right button - add user temperature annotation
 ```
+
+Alternatively if you can specify the video device directly with `-d` to skip the search routine. Also for T2S+ V2 users (where the camera sends raw data and doesn't do onboard processing) you can specify the `-r` option to tell the program to treat the camera stream as raw sensor data.
+Example:
+
+```
+./pyplot.py -d /dev/video14 -r
+```
+
 ![pyplot output](docs/pyplot-output1.png)
 ![pyplot output](docs/pyplot-output2.png)
 
