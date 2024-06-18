@@ -2,6 +2,8 @@
 import math
 from sys import platform
 from typing import Tuple
+import time
+from time import sleep
 
 import cv2
 import numpy as np
@@ -54,12 +56,19 @@ class Camera:
     fourLinePara:int
     cap:cv2.VideoCapture
     frame_raw_u16:np.ndarray
-    def __init__(self, video_dev:cv2.VideoCapture|None=None) -> None:
+
+    camera_raw = False
+    reference_frame = None
+    offset_mean = 0.0
+    dead_pixels_mask = None
+
+    def __init__(self, video_dev:cv2.VideoCapture|None=None, camera_raw = False) -> None:
         if video_dev is None:
             video_dev = self.find_device()
         if not video_dev:
             raise Exception("No video device found!")
         self.cap = video_dev
+        self.camera_raw = camera_raw
         self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))-ROWS_SPECIAL_DATA
         self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 
@@ -75,9 +84,15 @@ class Camera:
         # using Raw mode 16 bit data
         self.cap.set(cv2.CAP_PROP_ZOOM, 0x8004)
         
+        # Wait for the camera to apply the temperature range change
+        self.wait_for_range_application()
+
+        # Calibrate the camera
         self.calibrate()
 
- 
+    def get_resolution(self) -> Tuple[int, int]:
+        return self.width, self.height
+
     def find_device(cls) -> cv2.VideoCapture:
         """Find a supported thermal camera
          
@@ -100,10 +115,29 @@ class Camera:
 
     def info(self) -> Tuple[dict, np.ndarray]:
         shutTemper = read_u16(self.frame_raw_u16, self.fourLinePara + self.amountPixels + 1)
-        floatShutTemper = shutTemper / 10.0 - self.ZEROC
-        
+        if self.camera_raw:
+            if shutTemper < 0x801:
+                floatShutTemper = float(shutTemper)
+                corrFactor = 0.625
+            else:
+                floatShutTemper = float(0xfff - shutTemper)
+                corrFactor = -0.625
+            floatShutTemper = (floatShutTemper * corrFactor + 2731.5) / 10.0 + -273.15
+            # TODO fix this readout for the T2S+ v2
+            # The temperature is indeed being red out, but the sensor is located in some weird place,
+            # it gets hot super fast and causes the entire image to drift, I couldn't figure out how to deal with that
+            # hard coding ~18C (room temp) works pretty good tho...
+            floatShutTemper = 18.0
+        else:
+            floatShutTemper = shutTemper / 10.0 - self.ZEROC
+
         coreTemper = read_u16(self.frame_raw_u16, self.fourLinePara + self.amountPixels + 2)
-        floatCoreTemper = coreTemper / 10.0 - self.ZEROC
+        if self.camera_raw:
+            # TODO fix this readout for the T2S+ v2
+            # I don't even think the v2 has a separate core and shutter temperature registers...
+            floatCoreTemper = 18.0
+        else:
+            floatCoreTemper = coreTemper / 10.0 - self.ZEROC
         
         cal_00 = float(read_u16(self.frame_raw_u16, self.fourLinePara + self.amountPixels))
         self.cal_01 = read_f32(self.frame_raw_u16, self.fourLinePara + self.amountPixels + 3)
@@ -124,7 +158,7 @@ class Camera:
         humi = read_f32(self.frame_raw_u16, self.fourLinePara + self.userArea + 6)
         emiss = read_f32(self.frame_raw_u16, self.fourLinePara + self.userArea + 8) 
         distance = read_u16(self.frame_raw_u16, self.fourLinePara + self.userArea + 10)
-        
+
         fpa_avg = read_u16(self.frame_raw_u16, self.fourLinePara)
         fpaTmp = read_u16(self.frame_raw_u16, self.fourLinePara + 1)
         maxx1 = read_u16(self.frame_raw_u16, self.fourLinePara + 2)
@@ -204,10 +238,25 @@ class Camera:
         return info, temperatureTable
     
     # read raw data from cam, seperate visible frame from metadata
-    def read(self) -> Tuple[bool, np.ndarray]:
+    def read(self, raw = False) -> Tuple[bool, np.ndarray]:
         ret, frame_raw = self.cap.read()
         self.frame_raw_u16: np.ndarray = frame_raw.view(np.uint16).ravel()
         frame_visible = self.frame_raw_u16[:self.fourLinePara].copy().reshape(self.height, self.width)
+        if raw:
+            return ret, frame_visible
+        if self.reference_frame is not None:
+            frame_float = frame_visible.astype(np.float32)
+
+            corrected_frame = frame_float - self.reference_frame + self.offset_mean
+
+            corrected_frame = np.clip(corrected_frame, 0, 65535)
+
+            if self.dead_pixels_mask is not None:
+                inpaint_radius = 3
+                corrected_frame = cv2.inpaint(corrected_frame, self.dead_pixels_mask, inpaint_radius, cv2.INPAINT_TELEA)
+
+            frame_visible = corrected_frame.astype(np.uint16)
+        
         return ret, frame_visible
 
     def set_correction(self, correction: float) -> None:
@@ -289,9 +338,47 @@ class Camera:
         self.cap.set(cv2.CAP_PROP_ZOOM, x1)
         self.cap.set(cv2.CAP_PROP_ZOOM, y1)
 
-    def calibrate(self) -> None:
-        '''camera calibration'''
+    def calibrate_raw(self, quiet=False) -> None:
+        '''Camera calibration for cameras that return raw data only'''
+        self.reference_frame = None
+        self.offset_mean = 0.0
+        self.dead_pixels_mask = None
+        # uniformity correction
+        sleep(0.5)
+        self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000) # close shutter
+        sleep(0.3)  # wait for the shutter to close
+        self.flush_buffer()
+        # by issuing this command faster than once per second, we can keep the shutter closed
         self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000)
+        ret, frame_visible = self.read(raw=True)
+
+        if ret:
+            self.reference_frame = frame_visible.astype(np.float32)
+            self.offset_mean = np.mean(self.reference_frame)
+        else:
+            raise RuntimeError("Failed to capture reference frame")
+
+        # dead pixel correction
+        frame_visible_float = frame_visible.astype(np.float32)
+        min_val = np.min(frame_visible_float)
+        max_val = np.max(frame_visible_float)
+        threshold_margin = (max_val - min_val) * 0.05  # Adjust the multiplier as needed
+        threshold = min_val + threshold_margin
+
+        # if there are no dead pixels, we don't need to do anything
+        if np.count_nonzero(frame_visible_float < threshold) == 0:
+            self.dead_pixels_mask = cv2.inRange(frame_visible_float, 0, threshold).astype(np.uint8)
+
+        if not quiet:
+            print(f"Found {np.count_nonzero(self.dead_pixels_mask)} dead pixels")
+            print(f"At: {np.argwhere(self.dead_pixels_mask)}")
+
+    def calibrate(self, quiet=False) -> None:
+        '''camera calibration'''
+        if self.camera_raw:
+            self.calibrate_raw(quiet=quiet)
+        else:
+            self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000)
 
     def release(self) -> None:
         ''' Release cap opencv '''
@@ -366,8 +453,60 @@ class Camera:
     def temperature_range_high(self):
         """Switch camera to the high temperature range (-20°C to 450°C)"""
         self.cap.set(cv2.CAP_PROP_ZOOM, 0x8021)
+        if self.camera_raw:
+            # TODO verify these
+            self.correction_coefficient_m = 0.1
+            self.correction_coefficient_b = 0
+            return
         self.correction_coefficient_m = 1.17
         self.correction_coefficient_b = -40.9
+
+    def wait_for_range_application(self, timeout=20):
+        """Wait for the camera to apply the temperature range change, this is detected when the video stops being uniform"""
+        print("Waiting for camera to stabilize...")
+        start_time = time.time()
+        done = False
+        while time.time() - start_time < timeout:
+            ret, frame_visible = self.read()
+            if ret and np.std(frame_visible) > 0:
+                done = True
+                break
+            time.sleep(0.1)
+
+        if self.camera_raw:
+            # Now we keep the shutter closed and wait for the camera to stabilize,
+            # we do this by running the calibration, waiting a bit and checking the average
+            # of all the pixels, when the change gets below a certain threshold we can consider
+            # the camera to be stable.
+            # Throughout this routine we keep the shutter closed.
+            lowest = 1000
+            margin = 0.1
+            min_val = 0.01
+            while time.time() - start_time < timeout:
+                self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000)
+                self.calibrate(quiet=True)
+                ret, frame_visible = self.read()
+                if ret:
+                    # calculate how uniform the frame is
+                    std = np.std(frame_visible)
+                    self.cap.set(cv2.CAP_PROP_ZOOM, 0x8000)
+                    sleep(0.1)
+                    if std > min_val and lowest - std < margin:
+                        print(f"Camera is stable with std: {std}")
+                        return True
+                    
+                    if std < lowest and std > min_val:
+                        lowest = std
+            
+        elif done: 
+            print("Camera is stable")
+            return True
+
+        return False
+        
+    def flush_buffer(self, num_reads=16):
+        for i in range(num_reads):
+            ret, frame_visible = self.read(raw=True)
 
 
 class MockVidoCapture:
