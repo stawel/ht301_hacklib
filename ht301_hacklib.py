@@ -365,7 +365,9 @@ class Camera:
         threshold_margin = (max_val - min_val) * 0.05  # Adjust the multiplier as needed
         threshold = min_val + threshold_margin
 
-        self.dead_pixels_mask = cv2.inRange(frame_visible_float, 0, threshold).astype(np.uint8)
+        # if there are no dead pixels, we don't need to do anything
+        if np.count_nonzero(frame_visible_float < threshold) == 0:
+            self.dead_pixels_mask = cv2.inRange(frame_visible_float, 0, threshold).astype(np.uint8)
 
         if not quiet:
             print(f"Found {np.count_nonzero(self.dead_pixels_mask)} dead pixels")
